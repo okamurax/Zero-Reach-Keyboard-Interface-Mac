@@ -15,6 +15,16 @@
           "to": [{ "key_code": "escape" }]
         },
         {
+          "description": "Tab+W = Spotlight検索",
+          "type": "basic",
+          "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "tab_held", "value": 1 },
+            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+          ],
+          "to": [{ "key_code": "spacebar", "modifiers": ["left_command"] }]
+        },
+        {
           "description": "【2回目】300ms以内に再度押されたらかなキーで上書き",
           "type": "basic",
           "from": { "key_code": "japanese_eisuu", "modifiers": { "optional": ["any"] } },
@@ -62,6 +72,24 @@
           "to": [{ "set_variable": { "name": "f13_pressed", "value": 1 } }],
           "to_after_key_up": [
             { "set_variable": { "name": "f13_pressed", "value": 0 } }
+          ]
+        },
+        {
+          "description": "F13+Cmd = Mission Control",
+          "type": "basic",
+          "from": { "key_code": "left_command", "modifiers": { "optional": ["any"] } },
+          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "to": [{ "key_code": "mission_control" }]
+        },
+        {
+          "description": "F13+1 = ウィンドウを最大化(Dock・タスクバー除く)",
+          "type": "basic",
+          "from": { "key_code": "1", "modifiers": { "optional": ["any"] } },
+          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "to": [
+            {
+              "shell_command": "~/.config/karabiner/assets/scripts/resize_full.sh"
+            }
           ]
         },
         {
