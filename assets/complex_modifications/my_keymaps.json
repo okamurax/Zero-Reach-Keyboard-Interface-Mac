@@ -149,6 +149,13 @@
           "to": [{ "key_code": "end" }]
         },
         {
+          "description": "F13+0 = ピリオド(.)",
+          "type": "basic",
+          "from": { "key_code": "0", "modifiers": { "optional": ["any"] } },
+          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "to": [{ "key_code": "period" }]
+        },
+        {
           "description": "F13+Backspace = Delete (Forward Delete)",
           "type": "basic",
           "from": { "key_code": "delete_or_backspace", "modifiers": { "optional": ["any"] } },
