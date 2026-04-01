@@ -293,35 +293,6 @@
           "to": [{ "key_code": "f7" }]
         }
       ]
-    },
-    {
-      "description": "Chrome: センターボタン↔右クリック入れ替え",
-      "manipulators": [
-        {
-          "description": "センターボタン → 右クリック (Chrome)",
-          "type": "basic",
-          "from": { "pointing_button": "button3" },
-          "conditions": [
-            {
-              "type": "frontmost_application_if",
-              "bundle_identifiers": ["^com\\.google\\.Chrome$"]
-            }
-          ],
-          "to": [{ "pointing_button": "button2" }]
-        },
-        {
-          "description": "右クリック → センターボタン (Chrome)",
-          "type": "basic",
-          "from": { "pointing_button": "button2" },
-          "conditions": [
-            {
-              "type": "frontmost_application_if",
-              "bundle_identifiers": ["^com\\.google\\.Chrome$"]
-            }
-          ],
-          "to": [{ "pointing_button": "button3" }]
-        }
-      ]
     }
   ]
 }
