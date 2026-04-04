@@ -5,7 +5,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "Tab即時英数、ダブルタップで日本語切替、Tab+Q=ESC",
+                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC",
                         "manipulators": [
                             {
                                 "conditions": [
@@ -20,38 +20,12 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "Tab+Q = ESC",
+                                "description": "英数+Q = ESC",
                                 "from": {
                                     "key_code": "q",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [{ "key_code": "escape" }],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "tab_held",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_unless",
-                                        "value": 1
-                                    }
-                                ],
-                                "description": "Tab+W = Spotlight検索",
-                                "from": {
-                                    "key_code": "w",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "spacebar",
-                                        "modifiers": ["left_command"]
-                                    }
-                                ],
                                 "type": "basic"
                             },
                             {
@@ -163,14 +137,70 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "name": "f13_cmd_tapped",
+                                        "type": "variable_if",
+                                        "value": 1
                                     }
                                 ],
-                                "description": "F13+Cmd = Mission Control",
+                                "description": "【2回目】F13+Cmd ダブルタップで かな",
                                 "from": {
                                     "key_code": "left_command",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "mission_control" }],
+                                "to": [
+                                    {
+                                        "set_variable": {
+                                            "name": "f13_cmd_tapped",
+                                            "value": 0
+                                        }
+                                    },
+                                    { "key_code": "japanese_kana" }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    }
+                                ],
+                                "description": "【1回目】F13+Cmd で 英数",
+                                "from": {
+                                    "key_code": "left_command",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
+                                "to": [
+                                    { "key_code": "japanese_eisuu" },
+                                    {
+                                        "set_variable": {
+                                            "name": "f13_cmd_tapped",
+                                            "value": 1
+                                        }
+                                    }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_canceled": [
+                                        {
+                                            "set_variable": {
+                                                "name": "f13_cmd_tapped",
+                                                "value": 0
+                                            }
+                                        }
+                                    ],
+                                    "to_if_invoked": [
+                                        {
+                                            "set_variable": {
+                                                "name": "f13_cmd_tapped",
+                                                "value": 0
+                                            }
+                                        }
+                                    ]
+                                },
                                 "type": "basic"
                             },
                             {

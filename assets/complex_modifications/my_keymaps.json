@@ -2,10 +2,10 @@
   "title": "My Keymaps",
   "rules": [
     {
-      "description": "Tab即時英数、ダブルタップで日本語切替、Tab+Q=ESC",
+      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC",
       "manipulators": [
         {
-          "description": "Tab+Q = ESC",
+          "description": "英数+Q = ESC",
           "type": "basic",
           "from": { "key_code": "q", "modifiers": { "optional": ["any"] } },
           "conditions": [
@@ -13,16 +13,6 @@
             { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
           ],
           "to": [{ "key_code": "escape" }]
-        },
-        {
-          "description": "Tab+W = Spotlight検索",
-          "type": "basic",
-          "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
-          "conditions": [
-            { "type": "variable_if", "name": "tab_held", "value": 1 },
-            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
-          ],
-          "to": [{ "key_code": "spacebar", "modifiers": ["left_command"] }]
         },
         {
           "description": "【2回目】300ms以内に再度押されたらかなキーで上書き",
@@ -75,11 +65,40 @@
           ]
         },
         {
-          "description": "F13+Cmd = Mission Control",
+          "description": "【2回目】F13+Cmd ダブルタップで かな",
           "type": "basic",
           "from": { "key_code": "left_command", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
-          "to": [{ "key_code": "mission_control" }]
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "variable_if", "name": "f13_cmd_tapped", "value": 1 }
+          ],
+          "to": [
+            { "set_variable": { "name": "f13_cmd_tapped", "value": 0 } },
+            { "key_code": "japanese_kana" }
+          ]
+        },
+        {
+          "description": "【1回目】F13+Cmd で 英数",
+          "type": "basic",
+          "from": { "key_code": "left_command", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 }
+          ],
+          "to": [
+            { "key_code": "japanese_eisuu" },
+            { "set_variable": { "name": "f13_cmd_tapped", "value": 1 } }
+          ],
+          "to_delayed_action": {
+            "to_if_invoked": [
+              { "set_variable": { "name": "f13_cmd_tapped", "value": 0 } }
+            ],
+            "to_if_canceled": [
+              { "set_variable": { "name": "f13_cmd_tapped", "value": 0 } }
+            ]
+          },
+          "parameters": {
+            "basic.to_delayed_action_delay_milliseconds": 300
+          }
         },
         {
           "description": "F13+1 = ウィンドウを最大化(Dock・タスクバー除く)",
