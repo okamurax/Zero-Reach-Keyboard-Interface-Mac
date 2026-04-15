@@ -108,6 +108,20 @@
                         "description": "F13レイヤー",
                         "manipulators": [
                             {
+                                "description": "Cmd+F13 = Cmd+Tab (アプリスイッチャー)",
+                                "from": {
+                                    "key_code": "f13",
+                                    "modifiers": { "mandatory": ["command"] }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "tab",
+                                        "modifiers": ["left_command"]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
                                 "description": "F13を押している間、変数 f13_pressed を 1 にする",
                                 "from": {
                                     "key_code": "f13",
