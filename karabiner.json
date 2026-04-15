@@ -333,12 +333,17 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+7 = Home (行頭)",
+                                "description": "F13+7 = Cmd+← (行頭)",
                                 "from": {
                                     "key_code": "7",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "home" }],
+                                "to": [
+                                    {
+                                        "key_code": "left_arrow",
+                                        "modifiers": ["left_command"]
+                                    }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -349,12 +354,17 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+8 = End (行末)",
+                                "description": "F13+8 = Cmd+→ (行末)",
                                 "from": {
                                     "key_code": "8",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "end" }],
+                                "to": [
+                                    {
+                                        "key_code": "right_arrow",
+                                        "modifiers": ["left_command"]
+                                    }
+                                ],
                                 "type": "basic"
                             },
                             {
