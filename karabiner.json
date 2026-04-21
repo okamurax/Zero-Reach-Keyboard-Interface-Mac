@@ -5,7 +5,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Spotlight、英数+4=Enter",
+                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Ctrl+Opt+Space(Spotlight)、英数+4=Enter",
                         "manipulators": [
                             {
                                 "conditions": [
@@ -41,7 +41,7 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "英数+W = Cmd+Space (Spotlight)",
+                                "description": "英数+W = Ctrl+Option+Space (Spotlight)",
                                 "from": {
                                     "key_code": "w",
                                     "modifiers": { "optional": ["any"] }
@@ -49,7 +49,7 @@
                                 "to": [
                                     {
                                         "key_code": "spacebar",
-                                        "modifiers": ["left_command"]
+                                        "modifiers": ["left_control", "left_option"]
                                     }
                                 ],
                                 "type": "basic"
@@ -266,15 +266,6 @@
                     {
                         "description": "F13レイヤー",
                         "manipulators": [
-                            {
-                                "description": "Cmd+F13 = Mission Control",
-                                "from": {
-                                    "key_code": "f13",
-                                    "modifiers": { "mandatory": ["command"] }
-                                },
-                                "to": [{ "key_code": "mission_control" }],
-                                "type": "basic"
-                            },
                             {
                                 "description": "F13を押している間、変数 f13_pressed を 1 にする",
                                 "from": {
