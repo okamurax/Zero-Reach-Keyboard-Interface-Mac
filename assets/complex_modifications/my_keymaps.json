@@ -127,10 +127,23 @@
           }
         },
         {
+          "description": "F13+1 (Parallels) = Ctrl+Opt+Cmd+1送出。Windows側AHKで処理",
+          "type": "basic",
+          "from": { "key_code": "1", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "1", "modifiers": ["left_control", "left_option", "left_command"] }]
+        },
+        {
           "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化",
           "type": "basic",
           "from": { "key_code": "1", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [
             {
               "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 0"
@@ -138,10 +151,23 @@
           ]
         },
         {
+          "description": "F13+2 (Parallels) = Ctrl+Opt+Cmd+2送出。Windows側AHKで処理",
+          "type": "basic",
+          "from": { "key_code": "2", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "2", "modifiers": ["left_control", "left_option", "left_command"] }]
+        },
+        {
           "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化",
           "type": "basic",
           "from": { "key_code": "2", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [
             {
               "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 2"
@@ -279,10 +305,23 @@
           "to": [{ "key_code": "r", "modifiers": ["left_command"] }]
         },
         {
+          "description": "F13+C (Parallels) = Ctrl+Opt+Cmd+3送出。Windows側AHKで処理",
+          "type": "basic",
+          "from": { "key_code": "c", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "3", "modifiers": ["left_control", "left_option", "left_command"] }]
+        },
+        {
           "description": "F13+C = ウィンドウを適度なサイズに(75%幅×75%高、位置はそのまま)",
           "type": "basic",
           "from": { "key_code": "c", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [
             {
               "shell_command": "~/.config/karabiner/assets/scripts/resize_moderate.sh"
