@@ -68,18 +68,6 @@ ModerateResize() {
     WinMove(x, y, newW, newH, hwnd)
 }
 
-^!#1:: {
-    ToolTip("Ctrl+Alt+Win+1 received")
-    SetTimer(() => ToolTip(), -1000)
-    MoveToMonitor(1)
-}
-^!#2:: {
-    ToolTip("Ctrl+Alt+Win+2 received")
-    SetTimer(() => ToolTip(), -1000)
-    MoveToMonitor(3)
-}
-^!#3:: {
-    ToolTip("Ctrl+Alt+Win+3 received")
-    SetTimer(() => ToolTip(), -1000)
-    ModerateResize()
-}
+^!#1::MoveToMonitor(1)
+^!#2::MoveToMonitor(3)
+^!#3::ModerateResize()
