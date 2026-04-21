@@ -2,7 +2,7 @@
   "title": "My Keymaps",
   "rules": [
     {
-      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter",
+      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Spotlight、英数+4=Enter",
       "manipulators": [
         {
           "description": "英数+Q = ESC",
@@ -13,6 +13,16 @@
             { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
           ],
           "to": [{ "key_code": "escape" }]
+        },
+        {
+          "description": "英数+W = Cmd+Space (Spotlight)",
+          "type": "basic",
+          "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "tab_held", "value": 1 },
+            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+          ],
+          "to": [{ "key_code": "spacebar", "modifiers": ["left_command"] }]
         },
         {
           "description": "英数+4 = Enter",
@@ -269,7 +279,7 @@
           "to": [{ "key_code": "r", "modifiers": ["left_command"] }]
         },
         {
-          "description": "F13+C = ウィンドウを適度なサイズに(75%幅×85%高、中央配置)",
+          "description": "F13+C = ウィンドウを適度なサイズに(75%幅×75%高、位置はそのまま)",
           "type": "basic",
           "from": { "key_code": "c", "modifiers": { "optional": ["any"] } },
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
@@ -280,14 +290,14 @@
           ]
         },
         {
-          "description": "F13+G = Option+Shift+G",
+          "description": "F13+G = Option+Shift+G (Chrome用)",
           "type": "basic",
           "from": { "key_code": "g", "modifiers": { "optional": ["any"] } },
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
           "to": [{ "key_code": "g", "modifiers": ["left_option", "left_shift"] }]
         },
         {
-          "description": "F13+Z = Option+Shift+Z",
+          "description": "F13+Z = Option+Shift+Z (Chrome用)",
           "type": "basic",
           "from": { "key_code": "z", "modifiers": { "optional": ["any"] } },
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
