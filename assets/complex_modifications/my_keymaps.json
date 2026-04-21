@@ -35,11 +35,25 @@
           "to": [{ "key_code": "return_or_enter" }]
         },
         {
+          "description": "【2回目・Parallels】Ctrl+Cmd+5送出 (Windows IME ON)",
+          "type": "basic",
+          "from": { "key_code": "japanese_eisuu", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "tab_tapped_once", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [
+            { "set_variable": { "name": "tab_tapped_once", "value": 0 } },
+            { "key_code": "5", "modifiers": ["left_control", "left_command"] }
+          ]
+        },
+        {
           "description": "【2回目】300ms以内に再度押されたらかなキーで上書き",
           "type": "basic",
           "from": { "key_code": "japanese_eisuu", "modifiers": { "optional": ["any"] } },
           "conditions": [
-            { "type": "variable_if", "name": "tab_tapped_once", "value": 1 }
+            { "type": "variable_if", "name": "tab_tapped_once", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
           ],
           "to": [
             { "set_variable": { "name": "tab_tapped_once", "value": 0 } },
@@ -47,9 +61,39 @@
           ]
         },
         {
+          "description": "【1回目・Parallels】Ctrl+Cmd+4送出 (Windows IME OFF)、ダブルタップ検出変数セット",
+          "type": "basic",
+          "from": { "key_code": "japanese_eisuu", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [
+            { "key_code": "4", "modifiers": ["left_control", "left_command"] },
+            { "set_variable": { "name": "tab_tapped_once", "value": 1 } },
+            { "set_variable": { "name": "tab_held", "value": 1 } }
+          ],
+          "to_after_key_up": [
+            { "set_variable": { "name": "tab_held", "value": 0 } }
+          ],
+          "to_delayed_action": {
+            "to_if_invoked": [
+              { "set_variable": { "name": "tab_tapped_once", "value": 0 } }
+            ],
+            "to_if_canceled": [
+              { "set_variable": { "name": "tab_tapped_once", "value": 0 } }
+            ]
+          },
+          "parameters": {
+            "basic.to_delayed_action_delay_milliseconds": 300
+          }
+        },
+        {
           "description": "【1回目】即座に英数を送り、ダブルタップ検出用の変数をセット",
           "type": "basic",
           "from": { "key_code": "japanese_eisuu", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [
             { "key_code": "japanese_eisuu" },
             { "set_variable": { "name": "tab_tapped_once", "value": 1 } },
@@ -127,14 +171,14 @@
           }
         },
         {
-          "description": "F13+1 (Parallels) = Ctrl+Opt+Cmd+1送出。Windows側AHKで処理",
+          "description": "F13+1 (Parallels) = Ctrl+Cmd+1送出。Windows側AHKで処理",
           "type": "basic",
           "from": { "key_code": "1", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "f13_pressed", "value": 1 },
             { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
           ],
-          "to": [{ "key_code": "1", "modifiers": ["left_control", "left_option", "left_command"] }]
+          "to": [{ "key_code": "1", "modifiers": ["left_control", "left_command"] }]
         },
         {
           "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化",
@@ -151,14 +195,14 @@
           ]
         },
         {
-          "description": "F13+2 (Parallels) = Ctrl+Opt+Cmd+2送出。Windows側AHKで処理",
+          "description": "F13+2 (Parallels) = Ctrl+Cmd+2送出。Windows側AHKで処理",
           "type": "basic",
           "from": { "key_code": "2", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "f13_pressed", "value": 1 },
             { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
           ],
-          "to": [{ "key_code": "2", "modifiers": ["left_control", "left_option", "left_command"] }]
+          "to": [{ "key_code": "2", "modifiers": ["left_control", "left_command"] }]
         },
         {
           "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化",
@@ -305,14 +349,14 @@
           "to": [{ "key_code": "r", "modifiers": ["left_command"] }]
         },
         {
-          "description": "F13+C (Parallels) = Ctrl+Opt+Cmd+3送出。Windows側AHKで処理",
+          "description": "F13+C (Parallels) = Ctrl+Cmd+3送出。Windows側AHKで処理",
           "type": "basic",
           "from": { "key_code": "c", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "f13_pressed", "value": 1 },
             { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
           ],
-          "to": [{ "key_code": "3", "modifiers": ["left_control", "left_option", "left_command"] }]
+          "to": [{ "key_code": "3", "modifiers": ["left_control", "left_command"] }]
         },
         {
           "description": "F13+C = ウィンドウを適度なサイズに(75%幅×75%高、位置はそのまま)",
