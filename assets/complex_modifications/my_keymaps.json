@@ -120,6 +120,28 @@
       "description": "F13レイヤー",
       "manipulators": [
         {
+          "description": "Cmd+F13 = Cmd+F13そのまま送出 (AltTab起動用、F13レイヤーは起動しない)",
+          "type": "basic",
+          "from": {
+            "key_code": "f13",
+            "modifiers": { "mandatory": ["left_command"], "optional": ["any"] }
+          },
+          "to": [
+            { "key_code": "f13", "modifiers": ["left_command"] }
+          ]
+        },
+        {
+          "description": "Ctrl+F13 = Ctrl+F13そのまま送出 (Parallels経由のCmd→Ctrl変換後もAltTab起動させる)",
+          "type": "basic",
+          "from": {
+            "key_code": "f13",
+            "modifiers": { "mandatory": ["left_control"], "optional": ["any"] }
+          },
+          "to": [
+            { "key_code": "f13", "modifiers": ["left_control"] }
+          ]
+        },
+        {
           "description": "F13を押している間、変数 f13_pressed を 1 にする",
           "type": "basic",
           "from": { "key_code": "f13", "modifiers": { "optional": ["any"] } },
