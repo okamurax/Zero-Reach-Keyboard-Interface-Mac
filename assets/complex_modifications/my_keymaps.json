@@ -437,6 +437,28 @@
           "to": [{ "key_code": "f7" }]
         }
       ]
+    },
+    {
+      "description": "Parallels前面時: 左Cmd → 左Ctrl (Windowsショートカット用)",
+      "manipulators": [
+        {
+          "type": "basic",
+          "conditions": [
+            {
+              "type": "frontmost_application_if",
+              "bundle_identifiers": [
+                "^com\\.parallels\\.desktop\\.console$",
+                "^com\\.parallels\\.winapp\\."
+              ]
+            }
+          ],
+          "from": {
+            "key_code": "left_command",
+            "modifiers": { "optional": ["any"] }
+          },
+          "to": [{ "key_code": "left_control" }]
+        }
+      ]
     }
   ]
 }

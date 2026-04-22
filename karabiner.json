@@ -996,6 +996,28 @@
                                 "type": "basic"
                             }
                         ]
+                    },
+                    {
+                        "description": "Parallels前面時: 左Cmd → 左Ctrl (Windowsショートカット用)",
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "from": {
+                                    "key_code": "left_command",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "left_control" }],
+                                "type": "basic"
+                            }
+                        ]
                     }
                 ]
             },
@@ -1003,6 +1025,10 @@
                 {
                     "identifiers": { "is_keyboard": true },
                     "simple_modifications": [
+                        {
+                            "from": { "key_code": "delete_or_backspace" },
+                            "to": [{ "key_code": "delete_forward" }]
+                        },
                         {
                             "from": { "key_code": "hyphen" },
                             "to": [{ "key_code": "quote" }]
