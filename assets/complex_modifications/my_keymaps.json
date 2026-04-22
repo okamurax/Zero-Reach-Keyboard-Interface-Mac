@@ -206,7 +206,7 @@
           ],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 0"
+              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 0 '' 80"
             }
           ]
         },
@@ -230,7 +230,7 @@
           ],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 2"
+              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 2 '' 80"
             }
           ]
         },
@@ -241,7 +241,7 @@
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 1"
+              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 1 '' 48"
             }
           ]
         },

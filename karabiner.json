@@ -444,7 +444,7 @@
                                     "key_code": "1",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 0" }],
+                                "to": [{ "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 0 '' 80" }],
                                 "type": "basic"
                             },
                             {
@@ -495,7 +495,7 @@
                                     "key_code": "2",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 2" }],
+                                "to": [{ "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 2 '' 80" }],
                                 "type": "basic"
                             },
                             {
@@ -511,7 +511,7 @@
                                     "key_code": "x",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 1" }],
+                                "to": [{ "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 1 '' 48" }],
                                 "type": "basic"
                             },
                             {

@@ -1,18 +1,22 @@
 #!/bin/bash
-# Usage: move_to_display.sh <screen_index> [dock_right]
-# screen_index: 0-based, screens sorted left-to-right by x-coordinate
-# dock_right:   if "dock_right", subtract Dock width from the right side
+# Usage: move_to_display.sh <screen_index> [dock_right] [taskbar_bottom_px]
+# screen_index:       0-based, screens sorted left-to-right by x-coordinate
+# dock_right:         if "dock_right", subtract Dock width from the right side (else "" / "none")
+# taskbar_bottom_px:  pixels to subtract from bottom (for Parallels Coherence Windows taskbar)
 
 SCREEN_INDEX="${1:-0}"
 DOCK_RIGHT="${2:-}"
+TASKBAR_BOTTOM="${3:-0}"
 
-osascript - "$SCREEN_INDEX" "$DOCK_RIGHT" <<'APPLESCRIPT'
+osascript - "$SCREEN_INDEX" "$DOCK_RIGHT" "$TASKBAR_BOTTOM" <<'APPLESCRIPT'
 use framework "AppKit"
 
 on run argv
     set targetIndex to (item 1 of argv) as integer
     set dockFlag to ""
+    set taskbarBottom to 0
     if (count of argv) > 1 then set dockFlag to item 2 of argv
+    if (count of argv) > 2 then set taskbarBottom to (item 3 of argv) as integer
 
     set allScreens to current application's NSScreen's screens()
     set screenCount to count of allScreens
@@ -65,7 +69,14 @@ on run argv
     end if
 
     -- Cocoa (bottom-left origin) -> AppleScript (top-left origin)
+    -- IMPORTANT: compute topY BEFORE shrinking vh, so the window's TOP stays
+    -- at the visible frame top and only the BOTTOM moves up by taskbarBottom.
     set topY to totalH - vy - vh
+
+    -- Subtract Windows taskbar height from bottom (Parallels Coherence Mode)
+    if taskbarBottom > 0 then
+        set vh to vh - taskbarBottom
+    end if
 
     tell application "System Events"
         tell first application process whose frontmost is true
