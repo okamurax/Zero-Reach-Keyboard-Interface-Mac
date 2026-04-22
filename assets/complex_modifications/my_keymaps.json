@@ -206,7 +206,7 @@
           ],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 0 '' 80"
+              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 0"
             }
           ]
         },
@@ -230,7 +230,7 @@
           ],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 2 '' 80"
+              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 2"
             }
           ]
         },
@@ -337,17 +337,43 @@
           "to": [{ "key_code": "w", "modifiers": ["left_command"] }]
         },
         {
+          "description": "F13+A (Parallels) = Ctrl+PageUp (Excelシート前・Chromeタブ前 共通)",
+          "type": "basic",
+          "from": { "key_code": "a", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "page_up", "modifiers": ["left_control"] }]
+        },
+        {
           "description": "F13+A = Ctrl+Shift+Tab (前のタブ)",
           "type": "basic",
           "from": { "key_code": "a", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "tab", "modifiers": ["left_control", "left_shift"] }]
+        },
+        {
+          "description": "F13+S (Parallels) = Ctrl+PageDown (Excelシート次・Chromeタブ次 共通)",
+          "type": "basic",
+          "from": { "key_code": "s", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "page_down", "modifiers": ["left_control"] }]
         },
         {
           "description": "F13+S = Ctrl+Tab (次のタブ)",
           "type": "basic",
           "from": { "key_code": "s", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "tab", "modifiers": ["left_control"] }]
         },
         {
