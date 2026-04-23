@@ -151,42 +151,6 @@
           ]
         },
         {
-          "description": "【2回目】F13+Cmd ダブルタップで かな",
-          "type": "basic",
-          "from": { "key_code": "left_command", "modifiers": { "optional": ["any"] } },
-          "conditions": [
-            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
-            { "type": "variable_if", "name": "f13_cmd_tapped", "value": 1 }
-          ],
-          "to": [
-            { "set_variable": { "name": "f13_cmd_tapped", "value": 0 } },
-            { "key_code": "japanese_kana" }
-          ]
-        },
-        {
-          "description": "【1回目】F13+Cmd で 英数",
-          "type": "basic",
-          "from": { "key_code": "left_command", "modifiers": { "optional": ["any"] } },
-          "conditions": [
-            { "type": "variable_if", "name": "f13_pressed", "value": 1 }
-          ],
-          "to": [
-            { "key_code": "japanese_eisuu" },
-            { "set_variable": { "name": "f13_cmd_tapped", "value": 1 } }
-          ],
-          "to_delayed_action": {
-            "to_if_invoked": [
-              { "set_variable": { "name": "f13_cmd_tapped", "value": 0 } }
-            ],
-            "to_if_canceled": [
-              { "set_variable": { "name": "f13_cmd_tapped", "value": 0 } }
-            ]
-          },
-          "parameters": {
-            "basic.to_delayed_action_delay_milliseconds": 300
-          }
-        },
-        {
           "description": "F13+1 (Parallels) = Ctrl+Cmd+1送出。Windows側AHKで処理",
           "type": "basic",
           "from": { "key_code": "1", "modifiers": { "optional": ["any"] } },
