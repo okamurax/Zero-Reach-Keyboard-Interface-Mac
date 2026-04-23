@@ -80,8 +80,15 @@ on run argv
 
     tell application "System Events"
         tell first application process whose frontmost is true
-            set position of first window to {vx, topY}
-            set size of first window to {vw, vh}
+            if (count of windows) > 0 then
+                set position of first window to {vx, topY}
+                set size of first window to {vw, vh}
+            else
+                -- Adobe Bridge等、メインウィンドウをAXLayoutAreaとして公開するアプリへのフォールバック
+                set la to first UI element whose role is "AXLayoutArea"
+                set position of la to {vx, topY}
+                set size of la to {vw, vh}
+            end if
         end tell
     end tell
 end run
