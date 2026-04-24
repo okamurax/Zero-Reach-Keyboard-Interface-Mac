@@ -9,9 +9,9 @@ set visFrame to mainScreen's visibleFrame()
 set vw to item 1 of item 2 of visFrame as integer
 set vh to item 2 of item 2 of visFrame as integer
 
--- 75%幅、75%高さ（位置はそのまま）
-set winW to (vw * 75 div 100)
+-- 高さは visibleFrame の75%、幅はそこから 4:3 で算出（位置はそのまま）
 set winH to (vh * 75 div 100)
+set winW to (winH * 4 div 3)
 
 tell application "System Events"
     tell first application process whose frontmost is true
