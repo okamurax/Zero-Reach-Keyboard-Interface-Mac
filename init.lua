@@ -77,14 +77,11 @@ hs.urlevent.bind("movetodisplay", function(_, params)
 end)
 
 -- hammerspoon://resizeModerate
--- 高さ = メイン画面 visibleFrame の 75%、幅 = 高さ × 4/3。位置は変えない
+-- 1200x750 固定サイズ。位置は変えない
 -- リサイズ後にタイトルバー中央へカーソルを移動して、そのままドラッグで動かせるようにする
 hs.urlevent.bind("resizemoderate", function(_, _)
-    local screen = hs.screen.mainScreen()
-    if not screen then return end
-    local f = screen:frame()
-    local winH = math.floor(f.h * 75 / 100)
-    local winW = math.floor(winH * 4 / 3)
+    local winW = 1200
+    local winH = 750
 
     local target, kind = focusedTarget()
     if not target then return end
