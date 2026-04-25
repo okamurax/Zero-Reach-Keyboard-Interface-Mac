@@ -170,7 +170,7 @@
           ],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 0"
+              "shell_command": "open -g 'hammerspoon://movetodisplay?idx=0'"
             }
           ]
         },
@@ -194,7 +194,7 @@
           ],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 2"
+              "shell_command": "open -g 'hammerspoon://movetodisplay?idx=2'"
             }
           ]
         },
@@ -205,7 +205,7 @@
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/move_to_display.sh 1 '' 48"
+              "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&taskbar=48'"
             }
           ]
         },
@@ -374,7 +374,7 @@
           ],
           "to": [
             {
-              "shell_command": "~/.config/karabiner/assets/scripts/resize_moderate.sh"
+              "shell_command": "open -g 'hammerspoon://resizemoderate'"
             }
           ]
         },
