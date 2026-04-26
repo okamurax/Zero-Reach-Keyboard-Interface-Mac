@@ -47,29 +47,28 @@ local function screenAtIndex(idx)
     return screens[idx + 1]
 end
 
--- hammerspoon://moveToDisplay?idx=N[&dock=right][&taskbar=N]
--- 旧 assets/scripts/move_to_display.sh の置き換え。osascript 起動コストを回避
+-- hammerspoon://moveToDisplay?idx=N[&dockw=N][&taskbar=N]
+-- fullFrame() ベースで決定論的に計算する。
+-- frame() (visibleFrame) は Dock の位置・auto-hide 状態で返り値が変わるため使わない。
+-- メニューバー高さは fullFrame と frame の差から検出 (Dock の有無に関係なく安定)。
+-- dockw=N は右端から差し引くピクセル数 (右配置の Mac Dock 回避用)。
+-- taskbar=N は下端から差し引くピクセル数 (下配置の Mac Dock や Windows タスクバー回避用)。
 hs.urlevent.bind("movetodisplay", function(_, params)
     local idx = tonumber(params.idx) or 0
-    local dockRight = params.dock == "right"
+    local dockw = tonumber(params.dockw) or 0
     local taskbar = tonumber(params.taskbar) or 0
 
     local screen = screenAtIndex(idx)
     if not screen then return end
 
-    -- frame() は Dock / メニューバーを除いた領域（NSScreen の visibleFrame に相当）
-    local f = screen:frame()
-    local x, y, w, h = f.x, f.y, f.w, f.h
+    local full = screen:fullFrame()
+    local vis = screen:frame()
+    local menubarH = vis.y - full.y  -- メニューバーがこの画面にある場合 >0
 
-    if dockRight then
-        local full = screen:fullFrame()
-        local dockW = (full.x + full.w) - (f.x + f.w)
-        w = w - dockW
-    end
-
-    if taskbar > 0 then
-        h = h - taskbar
-    end
+    local x = full.x
+    local y = full.y + menubarH
+    local w = full.w - dockw
+    local h = full.h - menubarH - taskbar
 
     local target, kind = focusedTarget()
     if not target then return end
