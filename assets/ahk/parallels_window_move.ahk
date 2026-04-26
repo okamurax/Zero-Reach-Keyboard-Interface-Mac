@@ -4,7 +4,7 @@
 ; Karabiner経由でMac側から送られてくるトリガーを処理する。
 ;   Ctrl+Win+1 = 左ディスプレイに移動+最大化 (F13+1 相当)
 ;   Ctrl+Win+2 = 右ディスプレイに移動+最大化 (F13+2 相当、インデックス3想定・足りなければ最後)
-;   Ctrl+Win+3 = 高さ75%・幅4:3リサイズ・位置維持 (F13+C 相当)
+;   Ctrl+Win+3 = 1200x750 固定リサイズ・位置維持 (F13+C 相当)
 ;   Ctrl+Win+4 = MS-IME OFF (英数モード)      (英数単押し相当)
 ;   Ctrl+Win+5 = MS-IME ON  (ひらがなモード)  (英数ダブルタップ相当)
 
@@ -53,20 +53,7 @@ ModerateResize() {
     if (WinGetMinMax(hwnd) != 0)
         WinRestore(hwnd)
     WinGetPos(&x, &y, &w, &h, hwnd)
-    cx := x + w // 2
-    cy := y + h // 2
-    monNum := 1
-    Loop MonitorGetCount() {
-        MonitorGetWorkArea(A_Index, &L, &T, &R, &B)
-        if (cx >= L && cx < R && cy >= T && cy < B) {
-            monNum := A_Index
-            break
-        }
-    }
-    MonitorGetWorkArea(monNum, &L, &T, &R, &B)
-    newH := (B - T) * 75 // 100
-    newW := newH * 4 // 3
-    WinMove(x, y, newW, newH, hwnd)
+    WinMove(x, y, 1200, 750, hwnd)
 }
 
 ^#1::MoveToMonitor(1)
