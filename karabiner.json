@@ -372,7 +372,7 @@
                                     "key_code": "1",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://moveToDisplay?idx=0'" }],
+                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=0'" }],
                                 "type": "basic"
                             },
                             {
@@ -423,7 +423,7 @@
                                     "key_code": "2",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://moveToDisplay?idx=2'" }],
+                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=2'" }],
                                 "type": "basic"
                             },
                             {
@@ -439,7 +439,7 @@
                                     "key_code": "x",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://moveToDisplay?idx=1&taskbar=48'" }],
+                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&dockw=61&taskbar=49'" }],
                                 "type": "basic"
                             },
                             {
@@ -887,7 +887,7 @@
                                     "key_code": "c",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://resizeModerate'" }],
+                                "to": [{ "shell_command": "open -g 'hammerspoon://resizemoderate'" }],
                                 "type": "basic"
                             },
                             {
@@ -1074,6 +1074,10 @@
                             "to": [{ "key_code": "delete_or_backspace" }]
                         },
                         {
+                            "from": { "key_code": "left_command" },
+                            "to": [{ "key_code": "left_control" }]
+                        },
+                        {
                             "from": { "key_code": "left_control" },
                             "to": [{ "key_code": "left_command" }]
                         },
@@ -1096,10 +1100,6 @@
                         {
                             "from": { "key_code": "tab" },
                             "to": [{ "key_code": "japanese_eisuu" }]
-                        },
-                        {
-                            "from": { "key_code": "left_command" },
-                            "to": [{ "key_code": "left_control" }]
                         }
                     ]
                 },

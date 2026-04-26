@@ -205,7 +205,7 @@
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
           "to": [
             {
-              "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&taskbar=48'"
+              "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&dockw=61&taskbar=49'"
             }
           ]
         },
