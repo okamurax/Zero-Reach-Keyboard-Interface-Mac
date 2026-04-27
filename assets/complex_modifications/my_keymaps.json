@@ -25,6 +25,16 @@
           "to": [{ "key_code": "spacebar", "modifiers": ["left_control", "left_option"] }]
         },
         {
+          "description": "英数+3 = Backspace",
+          "type": "basic",
+          "from": { "key_code": "3", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "tab_held", "value": 1 },
+            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+          ],
+          "to": [{ "key_code": "delete_or_backspace" }]
+        },
+        {
           "description": "英数+4 = Enter",
           "type": "basic",
           "from": { "key_code": "4", "modifiers": { "optional": ["any"] } },
@@ -33,6 +43,16 @@
             { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
           ],
           "to": [{ "key_code": "return_or_enter" }]
+        },
+        {
+          "description": "英数+E = Finderで新規ウィンドウ(~/Downloads)を開く",
+          "type": "basic",
+          "from": { "key_code": "e", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "tab_held", "value": 1 },
+            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+          ],
+          "to": [{ "shell_command": "open -a Finder ~/Downloads" }]
         },
         {
           "description": "【2回目・Parallels】Ctrl+Cmd+5送出 (Windows IME ON)",
@@ -238,32 +258,84 @@
           "to": [{ "key_code": "right_arrow" }]
         },
         {
-          "description": "F13+3 = Cmd+↑ (ドキュメント先頭)",
+          "description": "F13+3 = Cmd+↑ (ドキュメント先頭) ※Parallels以外",
           "type": "basic",
           "from": { "key_code": "3", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "up_arrow", "modifiers": ["left_command"] }]
         },
         {
-          "description": "F13+4 = Cmd+↓ (ドキュメント末尾)",
+          "description": "F13+3 = Ctrl+Home (Win:ドキュメント先頭) ※Parallels時",
+          "type": "basic",
+          "from": { "key_code": "3", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "home", "modifiers": ["left_control"] }]
+        },
+        {
+          "description": "F13+4 = Cmd+↓ (ドキュメント末尾) ※Parallels以外",
           "type": "basic",
           "from": { "key_code": "4", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "down_arrow", "modifiers": ["left_command"] }]
         },
         {
-          "description": "F13+7 = Cmd+← (行頭)",
+          "description": "F13+4 = Ctrl+End (Win:ドキュメント末尾) ※Parallels時",
+          "type": "basic",
+          "from": { "key_code": "4", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "end", "modifiers": ["left_control"] }]
+        },
+        {
+          "description": "F13+7 = Cmd+← (行頭) ※Parallels以外",
           "type": "basic",
           "from": { "key_code": "7", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "left_arrow", "modifiers": ["left_command"] }]
         },
         {
-          "description": "F13+8 = Cmd+→ (行末)",
+          "description": "F13+7 = Home (Win:行頭) ※Parallels時",
+          "type": "basic",
+          "from": { "key_code": "7", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "home" }]
+        },
+        {
+          "description": "F13+8 = Cmd+→ (行末) ※Parallels以外",
           "type": "basic",
           "from": { "key_code": "8", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "right_arrow", "modifiers": ["left_command"] }]
+        },
+        {
+          "description": "F13+8 = End (Win:行末) ※Parallels時",
+          "type": "basic",
+          "from": { "key_code": "8", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "end" }]
         },
         {
           "description": "F13+0 = ピリオド(.)",
