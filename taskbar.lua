@@ -19,7 +19,9 @@ local FONT_SIZE    = 11
 local BG_COLOR     = { red = 0.10, green = 0.10, blue = 0.10, alpha = 0.92 }
 local ITEM_BG      = { red = 0.20, green = 0.20, blue = 0.20, alpha = 1.0 }
 local ITEM_BG_ACT  = { red = 0.30, green = 0.45, blue = 0.75, alpha = 1.0 }
+local ITEM_BG_MIN  = { red = 0.14, green = 0.14, blue = 0.14, alpha = 1.0 }
 local TEXT_COLOR   = { white = 0.95 }
+local TEXT_MIN     = { white = 0.55 }
 local CLOSE_COLOR  = { red = 0.85, green = 0.30, blue = 0.30, alpha = 1.0 }
 
 -- screenId -> { canvas, items = { {win, frame, closeFrame}, ... } }
@@ -32,10 +34,10 @@ local function screenIdOf(screen)
 end
 
 -- ウィンドウがタスクバーに出すべきものか
--- 不可視・最小化・タイトル空・自分自身(canvas) は除外
+-- 最小化中もタスクバーに残す (クリックで復元するWin風挙動のため)
+-- Hammerspoon自身(canvas)は除外
 local function isTaskable(win)
     if not win or not win:isStandard() then return false end
-    if win:isMinimized() then return false end
     local app = win:application()
     if not app then return false end
     if app:bundleID() == "org.hammerspoon.Hammerspoon" then return false end
@@ -81,15 +83,21 @@ local function renderBar(bar, wins)
         if x + ITEM_W > bar.w - ITEM_PAD then break end
 
         local isActive = (win:id() == focusedId)
+        local isMin = win:isMinimized()
         local app = win:application()
         local title = win:title() or ""
         if title == "" and app then title = app:name() end
+
+        local bgColor
+        if isMin then bgColor = ITEM_BG_MIN
+        elseif isActive then bgColor = ITEM_BG_ACT
+        else bgColor = ITEM_BG end
 
         -- アイテム背景
         canvas[#canvas + 1] = {
             type = "rectangle",
             action = "fill",
-            fillColor = isActive and ITEM_BG_ACT or ITEM_BG,
+            fillColor = bgColor,
             roundedRectRadii = { xRadius = 4, yRadius = 4 },
             frame = { x = x, y = 4, w = ITEM_W, h = BAR_H - 8 },
         }
@@ -110,7 +118,7 @@ local function renderBar(bar, wins)
         canvas[#canvas + 1] = {
             type = "text",
             text = title,
-            textColor = TEXT_COLOR,
+            textColor = isMin and TEXT_MIN or TEXT_COLOR,
             textSize = FONT_SIZE,
             textLineBreak = "truncateTail",
             frame = {
@@ -190,9 +198,23 @@ local function refresh()
                         if item.win then item.win:close() end
                         return
                     elseif x >= item.x1 and x <= item.x2 then
-                        if item.win then
-                            item.win:focus()
-                            item.win:raise()
+                        local win = item.win
+                        if not win then return end
+                        if win:isMinimized() then
+                            -- 最小化中: 復元 + フォーカス
+                            win:unminimize()
+                            win:focus()
+                            win:raise()
+                        else
+                            local focused = hs.window.focusedWindow()
+                            if focused and focused:id() == win:id() then
+                                -- アクティブ中: 最小化
+                                win:minimize()
+                            else
+                                -- 非アクティブ: 前面に
+                                win:focus()
+                                win:raise()
+                            end
                         end
                         return
                     end
