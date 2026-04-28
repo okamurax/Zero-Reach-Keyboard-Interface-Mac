@@ -1,6 +1,9 @@
 -- ウィンドウ操作の Hammerspoon 自前アニメーションを無効化（即時反映）
 hs.window.animationDuration = 0
 
+-- 画面下に貼り付くWin風タスクバー (ディスプレイ別)
+require("taskbar").start()
+
 -- 前面ウィンドウを取得。標準の AXWindow が無い場合 (Adobe Bridge等) は
 -- トップレベルの AXLayoutArea にフォールバック
 local function focusedTarget()
