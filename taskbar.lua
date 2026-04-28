@@ -28,6 +28,19 @@ local CLOSE_COLOR  = { red = 0.85, green = 0.30, blue = 0.30, alpha = 1.0 }
 local bars = {}
 local refreshTimer
 local windowFilter
+local moveDebounce
+
+-- bundleID -> hs.image (false = 取得失敗をキャッシュして再試行を抑制)
+local iconCache = {}
+local function getAppIcon(bid)
+    if not bid or bid == "" then return nil end
+    local cached = iconCache[bid]
+    if cached == nil then
+        cached = hs.image.imageFromAppBundle(bid) or false
+        iconCache[bid] = cached
+    end
+    return cached or nil
+end
 
 local function screenIdOf(screen)
     return screen:id()
@@ -61,7 +74,40 @@ local function groupWindowsByScreen()
 end
 
 -- 1枚のバーを描画
+-- 表示状態が前回と完全一致なら canvas を触らずに早期return (差分render)。
 local function renderBar(bar, wins)
+    local focused = hs.window.focusedWindow()
+    local focusedId = focused and focused:id() or nil
+
+    -- 表示対象だけ先に確定 (signature と描画ループで共有)
+    local visible = {}
+    local x0 = ITEM_PAD
+    for _, win in ipairs(wins) do
+        if x0 + ITEM_W > bar.w - ITEM_PAD then break end
+        local app = win:application()
+        local title = win:title() or ""
+        if title == "" and app then title = app:name() end
+        visible[#visible + 1] = {
+            win = win,
+            id = win:id(),
+            title = title,
+            isMin = win:isMinimized(),
+            isActive = (win:id() == focusedId),
+            app = app,
+        }
+        x0 = x0 + ITEM_W + ITEM_GAP
+    end
+
+    -- signature: barサイズ + 各item状態。前回と同じなら描画スキップ
+    local sigParts = { bar.w }
+    for _, v in ipairs(visible) do
+        sigParts[#sigParts + 1] = v.id .. ":" .. v.title .. ":" ..
+            (v.isMin and "m" or "_") .. (v.isActive and "a" or "_")
+    end
+    local sig = table.concat(sigParts, "|")
+    if bar.lastSig == sig then return end
+    bar.lastSig = sig
+
     local canvas = bar.canvas
     canvas:replaceElements()
 
@@ -75,18 +121,9 @@ local function renderBar(bar, wins)
 
     bar.items = {}
 
-    local focused = hs.window.focusedWindow()
-    local focusedId = focused and focused:id() or nil
-
     local x = ITEM_PAD
-    for _, win in ipairs(wins) do
-        if x + ITEM_W > bar.w - ITEM_PAD then break end
-
-        local isActive = (win:id() == focusedId)
-        local isMin = win:isMinimized()
-        local app = win:application()
-        local title = win:title() or ""
-        if title == "" and app then title = app:name() end
+    for _, v in ipairs(visible) do
+        local win, isActive, isMin, app, title = v.win, v.isActive, v.isMin, v.app, v.title
 
         local bgColor
         if isMin then bgColor = ITEM_BG_MIN
@@ -104,7 +141,7 @@ local function renderBar(bar, wins)
 
         -- アイコン
         if app then
-            local icon = hs.image.imageFromAppBundle(app:bundleID() or "")
+            local icon = getAppIcon(app:bundleID())
             if icon then
                 canvas[#canvas + 1] = {
                     type = "image",
@@ -246,11 +283,16 @@ function M.start()
         hs.window.filter.windowMinimized,
         hs.window.filter.windowUnminimized,
         hs.window.filter.windowTitleChanged,
-        hs.window.filter.windowMoved,
     }, function() refresh() end)
 
+    -- windowMoved はドラッグ中に大量発火するので debounce で1回に集約
+    windowFilter:subscribe(hs.window.filter.windowMoved, function()
+        if moveDebounce then moveDebounce:stop() end
+        moveDebounce = hs.timer.doAfter(0.15, refresh)
+    end)
+
     -- filter が取りこぼす環境(Adobe / Parallels)向けの保険
-    refreshTimer = hs.timer.doEvery(1, refresh)
+    refreshTimer = hs.timer.doEvery(3, refresh)
 
     -- ディスプレイ構成変更で全部作り直し
     M._screenWatcher = hs.screen.watcher.new(function()
@@ -266,6 +308,7 @@ end
 
 function M.stop()
     if refreshTimer then refreshTimer:stop(); refreshTimer = nil end
+    if moveDebounce then moveDebounce:stop(); moveDebounce = nil end
     if windowFilter then windowFilter:unsubscribeAll(); windowFilter = nil end
     if M._screenWatcher then M._screenWatcher:stop(); M._screenWatcher = nil end
     for id, bar in pairs(bars) do
