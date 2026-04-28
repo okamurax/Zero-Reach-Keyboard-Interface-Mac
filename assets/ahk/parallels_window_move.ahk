@@ -7,6 +7,7 @@
 ;   Ctrl+Win+3 = 1200x750 固定リサイズ・位置維持 (F13+C 相当)
 ;   Ctrl+Win+4 = MS-IME OFF (英数モード)      (英数単押し相当)
 ;   Ctrl+Win+5 = MS-IME ON  (ひらがなモード)  (英数ダブルタップ相当)
+;   Ctrl+Win+6 = 中央ディスプレイ(Mac本体)に移動+最大化 (F13+X 相当)
 
 GetSortedMonitors() {
     mons := []
@@ -61,3 +62,4 @@ ModerateResize() {
 ^#3::ModerateResize()
 ^#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
 ^#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
+^#6::MoveToMonitor(2)
