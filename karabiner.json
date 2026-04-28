@@ -348,12 +348,13 @@
                                     },
                                     {
                                         "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
                                             "^com\\.parallels\\.winapp\\."
                                         ],
                                         "type": "frontmost_application_unless"
                                     }
                                 ],
-                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化 (Window mode のVMウィンドウもここで処理)",
+                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化",
                                 "from": {
                                     "key_code": "1",
                                     "modifiers": { "optional": ["any"] }

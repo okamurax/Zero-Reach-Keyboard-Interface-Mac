@@ -9,6 +9,11 @@
 ;   Ctrl+Win+5 = MS-IME ON  (ひらがなモード)  (英数ダブルタップ相当)
 ;   Ctrl+Win+6 = 中央ディスプレイ(Mac本体)に移動+最大化 (F13+X 相当)
 
+; Mac側UIを避けるための予約。Coherence時はWin VM側がMac Dock/Hammerspoon taskbarを
+; 認識しないため、AHK側で手動オフセットする。Hammerspoon の taskbar/dockw 引数と揃える。
+MAC_TASKBAR_BOTTOM := 38   ; Hammerspoon自作タスクバー (全ディスプレイ共通)
+MAC_DOCK_RIGHT_CENTER := 61 ; Mac本体ディスプレイ右Dock (中央ディスプレイのみ)
+
 GetSortedMonitors() {
     mons := []
     Loop MonitorGetCount() {
@@ -33,6 +38,7 @@ GetSortedMonitors() {
 }
 
 MoveToMonitor(sortedIdx) {
+    global MAC_TASKBAR_BOTTOM, MAC_DOCK_RIGHT_CENTER
     hwnd := WinExist("A")
     if (!hwnd)
         return
@@ -42,9 +48,14 @@ MoveToMonitor(sortedIdx) {
     if (sortedIdx < 1)
         sortedIdx := 1
     m := mons[sortedIdx]
+
+    ; Mac側UI領域を予約
+    rightReserve := (sortedIdx = 2) ? MAC_DOCK_RIGHT_CENTER : 0
+    bottomReserve := MAC_TASKBAR_BOTTOM
+
     if (WinGetMinMax(hwnd) != 0)
         WinRestore(hwnd)
-    WinMove(m.L, m.T, m.R - m.L, m.B - m.T, hwnd)
+    WinMove(m.L, m.T, m.R - m.L - rightReserve, m.B - m.T - bottomReserve, hwnd)
 }
 
 ModerateResize() {
