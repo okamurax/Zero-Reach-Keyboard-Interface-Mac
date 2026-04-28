@@ -197,7 +197,7 @@
           "to": [{ "key_code": "6", "modifiers": ["left_control", "left_command"] }]
         },
         {
-          "description": "F13+X = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化",
+          "description": "F13+X = ウィンドウを適度なサイズに(75%幅×75%高、位置はそのまま)",
           "type": "basic",
           "from": { "key_code": "x", "modifiers": { "optional": ["any"] } },
           "conditions": [
@@ -206,7 +206,7 @@
           ],
           "to": [
             {
-              "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&dockw=61&taskbar=38'"
+              "shell_command": "open -g 'hammerspoon://resizemoderate'"
             }
           ]
         },
@@ -408,6 +408,13 @@
           "to": [{ "key_code": "r", "modifiers": ["left_command"] }]
         },
         {
+          "description": "F13+R = Cmd+M (ウィンドウ最小化)",
+          "type": "basic",
+          "from": { "key_code": "r", "modifiers": { "optional": ["any"] } },
+          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "to": [{ "key_code": "m", "modifiers": ["left_command"] }]
+        },
+        {
           "description": "F13+C (Parallels) = Ctrl+Cmd+3送出。Windows側AHKで処理",
           "type": "basic",
           "from": { "key_code": "c", "modifiers": { "optional": ["any"] } },
@@ -418,7 +425,7 @@
           "to": [{ "key_code": "3", "modifiers": ["left_control", "left_command"] }]
         },
         {
-          "description": "F13+C = ウィンドウを適度なサイズに(75%幅×75%高、位置はそのまま)",
+          "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化",
           "type": "basic",
           "from": { "key_code": "c", "modifiers": { "optional": ["any"] } },
           "conditions": [
@@ -427,7 +434,7 @@
           ],
           "to": [
             {
-              "shell_command": "open -g 'hammerspoon://resizemoderate'"
+              "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&dockw=61&taskbar=38'"
             }
           ]
         },

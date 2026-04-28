@@ -4,15 +4,14 @@
 ; Karabiner経由でMac側から送られてくるトリガーを処理する。
 ;   Ctrl+Win+1 = 左ディスプレイに移動+最大化 (F13+1 相当)
 ;   Ctrl+Win+2 = 右ディスプレイに移動+最大化 (F13+2 相当、インデックス3想定・足りなければ最後)
-;   Ctrl+Win+3 = 1200x750 固定リサイズ・位置維持 (F13+C 相当)
+;   Ctrl+Win+3 = 中央ディスプレイ(Mac本体)に移動+最大化 (F13+C 相当)
 ;   Ctrl+Win+4 = MS-IME OFF (英数モード)      (英数単押し相当)
 ;   Ctrl+Win+5 = MS-IME ON  (ひらがなモード)  (英数ダブルタップ相当)
-;   Ctrl+Win+6 = 中央ディスプレイ(Mac本体)に移動+最大化 (F13+X 相当)
+;   Ctrl+Win+6 = 1200x750 固定リサイズ・位置維持 (F13+X 相当)
 
-; Mac側UIを避けるための予約。Coherence時はWin VM側がMac Dock/Hammerspoon taskbarを
-; 認識しないため、AHK側で手動オフセットする。Hammerspoon の taskbar/dockw 引数と揃える。
+; MonitorGetWorkArea は Mac Dock 領域は既に除外した値を返すが、Hammerspoon 自作タスクバー
+; (overlayウィンドウ) は Parallels から見えないため認識されない。よって下端のみ手動オフセット。
 MAC_TASKBAR_BOTTOM := 38   ; Hammerspoon自作タスクバー (全ディスプレイ共通)
-MAC_DOCK_RIGHT_CENTER := 61 ; Mac本体ディスプレイ右Dock (中央ディスプレイのみ)
 
 GetSortedMonitors() {
     mons := []
@@ -38,7 +37,7 @@ GetSortedMonitors() {
 }
 
 MoveToMonitor(sortedIdx) {
-    global MAC_TASKBAR_BOTTOM, MAC_DOCK_RIGHT_CENTER
+    global MAC_TASKBAR_BOTTOM
     hwnd := WinExist("A")
     if (!hwnd)
         return
@@ -49,13 +48,9 @@ MoveToMonitor(sortedIdx) {
         sortedIdx := 1
     m := mons[sortedIdx]
 
-    ; Mac側UI領域を予約
-    rightReserve := (sortedIdx = 2) ? MAC_DOCK_RIGHT_CENTER : 0
-    bottomReserve := MAC_TASKBAR_BOTTOM
-
     if (WinGetMinMax(hwnd) != 0)
         WinRestore(hwnd)
-    WinMove(m.L, m.T, m.R - m.L - rightReserve, m.B - m.T - bottomReserve, hwnd)
+    WinMove(m.L, m.T, m.R - m.L, m.B - m.T - MAC_TASKBAR_BOTTOM, hwnd)
 }
 
 ModerateResize() {
@@ -70,7 +65,7 @@ ModerateResize() {
 
 ^#1::MoveToMonitor(1)
 ^#2::MoveToMonitor(3)
-^#3::ModerateResize()
+^#3::MoveToMonitor(2)
 ^#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
 ^#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
-^#6::MoveToMonitor(2)
+^#6::ModerateResize()
