@@ -88,6 +88,40 @@ hs.urlevent.bind("minimizefocused", function(_, _)
     if win then win:minimize() end
 end)
 
+-- hammerspoon://triggerclaunch
+-- 直近に使った Parallels 関連ウィンドウ (VMコンソール / Coherence Windowsアプリ) にフォーカスを
+-- 移してから Ctrl+Shift+F12 を送出 → Windows 側グローバルホットキーで CLaunch を呼ぶ。
+-- CLaunch は VM 内で常駐 (Windowsスタートアップ登録) されている前提。
+-- Mac側のどのアプリにフォーカスがあっても VM 内に届くので「どこからでも CLaunch」が成立する。
+hs.urlevent.bind("triggerclaunch", function(_, _)
+    -- 優先順位: (1) Coherence Windows アプリ (com.parallels.winapp.*)
+    --          (2) Parallels Desktop 本体 (com.parallels.desktop.console)
+    -- Coherence では各 Windows アプリが別プロセス。本体ではなく winapp.* を activate しないと
+    -- VM 内に入力フォーカスが届かないため、可視ウィンドウを持つ winapp を優先する。
+    local coherence, console = nil, nil
+    for _, app in ipairs(hs.application.runningApplications()) do
+        local bid = app:bundleID() or ""
+        if bid:match("^com%.parallels%.winapp%.") then
+            local wins = app:visibleWindows()
+            if wins and #wins > 0 then
+                coherence = app
+                break
+            elseif not coherence then
+                coherence = app
+            end
+        elseif bid == "com.parallels.desktop.console" then
+            console = app
+        end
+    end
+
+    local target = coherence or console
+    if not target then return end
+    target:activate()
+    hs.timer.doAfter(0.25, function()
+        hs.eventtap.keyStroke({"ctrl", "shift"}, "f12", 0)
+    end)
+end)
+
 -- hammerspoon://resizeModerate
 -- 1200x750 固定サイズ。位置は変えない
 -- リサイズ後にタイトルバー中央へカーソルを移動して、そのままドラッグで動かせるようにする
