@@ -8,7 +8,15 @@
 ;   Ctrl+Win+4 = MS-IME OFF (英数モード)      (英数単押し相当)
 ;   Ctrl+Win+5 = MS-IME ON  (ひらがなモード)  (英数ダブルタップ相当)
 ;   Ctrl+Win+6 = 1200x750 固定リサイズ・位置維持 (F13+X 相当)
-;   Ctrl+Win+7 = アクティブウィンドウ最小化         (F13+F 相当)
+;   Ctrl+Win+7 = Alt+Right (F13+W 相当 / Explorer/ブラウザ進む)
+;   Ctrl+Win+8 = 前タブ (F13+A 相当 / Explorer=Ctrl+Shift+Tab、他=Ctrl+PageUp)
+;   Ctrl+Win+9 = 次タブ (F13+S 相当 / Explorer=Ctrl+Tab、他=Ctrl+PageDown)
+;   Ctrl+Win+0 = Alt+Left  (F13+Q 相当 / Explorer/ブラウザ戻る)
+; ※ F13+F の最小化は Hammerspoon 経由 (hammerspoon://minimizefocused) に移行済み。
+;    AHK の WinMinimize は Parallels Coherence では macOS 側で「非表示」扱いとなり
+;    Hammerspoon 自作タスクバーから消える問題があったため。
+; ※ F13+Q/W は Opt+矢印 だと macOS の単語移動ショートカットと競合し Parallels に届かないため
+;    AHKトンネル経由に変更。
 
 ; MonitorGetWorkArea は Mac Dock 領域は既に除外した値を返すが、Hammerspoon 自作タスクバー
 ; (overlayウィンドウ) は Parallels から見えないため認識されない。よって下端のみ手動オフセット。
@@ -70,4 +78,21 @@ ModerateResize() {
 ^#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
 ^#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
 ^#6::ModerateResize()
-^#7::WinMinimize("A")
+^#7::Send("!{Right}")  ; F13+W (進む)
+^#8::SwitchTabPrev()
+^#9::SwitchTabNext()
+^#0::Send("!{Left}")   ; F13+Q (戻る)
+
+SwitchTabPrev() {
+    if WinActive("ahk_class CabinetWClass")
+        Send("^+{Tab}")
+    else
+        Send("^{PgUp}")
+}
+
+SwitchTabNext() {
+    if WinActive("ahk_class CabinetWClass")
+        Send("^{Tab}")
+    else
+        Send("^{PgDn}")
+}

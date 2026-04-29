@@ -375,17 +375,43 @@
           "to": [{ "key_code": "delete_forward" }]
         },
         {
+          "description": "F13+Q (Parallels) = Ctrl+Cmd+0送出。AHKでAlt+Left (Explorer/ブラウザ戻る)。Opt+矢印はmacOSの単語移動と競合するためAHKトンネル経由",
+          "type": "basic",
+          "from": { "key_code": "q", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "0", "modifiers": ["left_control", "left_command"] }]
+        },
+        {
           "description": "F13+Q = Cmd+[ (ブラウザ戻る)",
           "type": "basic",
           "from": { "key_code": "q", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "close_bracket", "modifiers": ["left_command"] }]
+        },
+        {
+          "description": "F13+W (Parallels) = Ctrl+Cmd+7送出。AHKでAlt+Right (Explorer/ブラウザ進む)。F13+F最小化が空けた7番を再利用",
+          "type": "basic",
+          "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "7", "modifiers": ["left_control", "left_command"] }]
         },
         {
           "description": "F13+W = Cmd+] (ブラウザ進む)",
           "type": "basic",
           "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "backslash", "modifiers": ["left_command"] }]
         },
         {
@@ -396,14 +422,14 @@
           "to": [{ "key_code": "w", "modifiers": ["left_command"] }]
         },
         {
-          "description": "F13+A (Parallels) = Ctrl+PageUp (Excelシート前・Chromeタブ前 共通)",
+          "description": "F13+A (Parallels) = Ctrl+Cmd+8送出。AHK側でExplorer=Ctrl+Shift+Tab、それ以外=Ctrl+PageUp",
           "type": "basic",
           "from": { "key_code": "a", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "f13_pressed", "value": 1 },
             { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
           ],
-          "to": [{ "key_code": "page_up", "modifiers": ["left_control"] }]
+          "to": [{ "key_code": "8", "modifiers": ["left_control", "left_command"] }]
         },
         {
           "description": "F13+A = Ctrl+Shift+Tab (前のタブ)",
@@ -416,14 +442,14 @@
           "to": [{ "key_code": "tab", "modifiers": ["left_control", "left_shift"] }]
         },
         {
-          "description": "F13+S (Parallels) = Ctrl+PageDown (Excelシート次・Chromeタブ次 共通)",
+          "description": "F13+S (Parallels) = Ctrl+Cmd+9送出。AHK側でExplorer=Ctrl+Tab、それ以外=Ctrl+PageDown",
           "type": "basic",
           "from": { "key_code": "s", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "f13_pressed", "value": 1 },
             { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
           ],
-          "to": [{ "key_code": "page_down", "modifiers": ["left_control"] }]
+          "to": [{ "key_code": "9", "modifiers": ["left_control", "left_command"] }]
         },
         {
           "description": "F13+S = Ctrl+Tab (次のタブ)",
@@ -443,14 +469,18 @@
           "to": [{ "key_code": "t", "modifiers": ["left_command", "left_shift"] }]
         },
         {
-          "description": "F13+F (Parallels) = Ctrl+Cmd+7送出。Windows側AHKで最小化",
+          "description": "F13+F (Parallels) = Hammerspoon経由で macOS native 最小化 (自作タスクバーから消えない)",
           "type": "basic",
           "from": { "key_code": "f", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "f13_pressed", "value": 1 },
             { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
           ],
-          "to": [{ "key_code": "7", "modifiers": ["left_control", "left_command"] }]
+          "to": [
+            {
+              "shell_command": "open -g 'hammerspoon://minimizefocused'"
+            }
+          ]
         },
         {
           "description": "F13+F = Cmd+M (ウィンドウ最小化)",
@@ -463,10 +493,23 @@
           "to": [{ "key_code": "m", "modifiers": ["left_command"] }]
         },
         {
+          "description": "F13+R (Parallels) = F5 (Explorer/ブラウザ更新)",
+          "type": "basic",
+          "from": { "key_code": "r", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "f5" }]
+        },
+        {
           "description": "F13+R = Cmd+R (更新)",
           "type": "basic",
           "from": { "key_code": "r", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
           "to": [{ "key_code": "r", "modifiers": ["left_command"] }]
         },
         {
@@ -556,7 +599,7 @@
       "description": "左Cmd ダブルタップで Cmd+Shift+V (プレーンテキストペースト)",
       "manipulators": [
         {
-          "description": "【2回目】300ms以内に左Cmdを再tapしたら Cmd+Shift+V を発火",
+          "description": "【2回目/Mac】300ms以内に左Cmdを再tapしたら Cmd+Shift+V を発火",
           "type": "basic",
           "from": {
             "key_code": "left_command",
@@ -581,7 +624,7 @@
           ]
         },
         {
-          "description": "【1回目】左Cmdを単独tapしたらフラグを立て、300ms監視",
+          "description": "【1回目/Mac】左Cmdを単独tapしたらフラグを立て、300ms監視",
           "type": "basic",
           "from": {
             "key_code": "left_command",
@@ -630,10 +673,40 @@
       ]
     },
     {
-      "description": "Parallels前面時: 左Cmd → 左Ctrl (Windowsショートカット用)",
+      "description": "Parallels前面: 左Cmd挙動 (単独tap無効化/修飾時=Ctrl/ダブルtap=Clipy)",
       "manipulators": [
         {
+          "description": "【2回目/Parallels】300ms以内に左Cmdを再tapしたら Cmd+Shift+V を発火 (macOS側Clipy起動)",
           "type": "basic",
+          "from": {
+            "key_code": "left_command",
+            "modifiers": { "optional": ["any"] }
+          },
+          "conditions": [
+            { "type": "variable_if", "name": "cmd_double_tap_pending", "value": 1 },
+            {
+              "type": "frontmost_application_if",
+              "bundle_identifiers": [
+                "^com\\.parallels\\.desktop\\.console$",
+                "^com\\.parallels\\.winapp\\."
+              ]
+            }
+          ],
+          "to": [
+            { "key_code": "left_control", "lazy": true }
+          ],
+          "to_if_alone": [
+            { "set_variable": { "name": "cmd_double_tap_pending", "value": 0 } },
+            { "key_code": "v", "modifiers": ["left_command", "left_shift"] }
+          ]
+        },
+        {
+          "description": "【1回目/Parallels】左Cmdを単独tapしたらフラグを立て、修飾時はCtrl化",
+          "type": "basic",
+          "from": {
+            "key_code": "left_command",
+            "modifiers": { "optional": ["any"] }
+          },
           "conditions": [
             {
               "type": "frontmost_application_if",
@@ -643,11 +716,23 @@
               ]
             }
           ],
-          "from": {
-            "key_code": "left_command",
-            "modifiers": { "optional": ["any"] }
+          "to": [
+            { "key_code": "left_control", "lazy": true }
+          ],
+          "to_if_alone": [
+            { "set_variable": { "name": "cmd_double_tap_pending", "value": 1 } }
+          ],
+          "to_delayed_action": {
+            "to_if_invoked": [
+              { "set_variable": { "name": "cmd_double_tap_pending", "value": 0 } }
+            ],
+            "to_if_canceled": [
+              { "set_variable": { "name": "cmd_double_tap_pending", "value": 0 } }
+            ]
           },
-          "to": [{ "key_code": "left_control" }]
+          "parameters": {
+            "basic.to_delayed_action_delay_milliseconds": 300
+          }
         }
       ]
     }
