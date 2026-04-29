@@ -8,6 +8,7 @@
 ;   Ctrl+Win+4 = MS-IME OFF (英数モード)      (英数単押し相当)
 ;   Ctrl+Win+5 = MS-IME ON  (ひらがなモード)  (英数ダブルタップ相当)
 ;   Ctrl+Win+6 = 1200x750 固定リサイズ・位置維持 (F13+X 相当)
+;   Ctrl+Win+7 = アクティブウィンドウ最小化         (F13+F 相当)
 
 ; MonitorGetWorkArea は Mac Dock 領域は既に除外した値を返すが、Hammerspoon 自作タスクバー
 ; (overlayウィンドウ) は Parallels から見えないため認識されない。よって下端のみ手動オフセット。
@@ -69,3 +70,4 @@ ModerateResize() {
 ^#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
 ^#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
 ^#6::ModerateResize()
+^#7::WinMinimize("A")

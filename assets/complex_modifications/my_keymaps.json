@@ -25,6 +25,26 @@
           "to": [{ "key_code": "spacebar", "modifiers": ["left_control", "left_option"] }]
         },
         {
+          "description": "英数+1 = F12",
+          "type": "basic",
+          "from": { "key_code": "1", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "tab_held", "value": 1 },
+            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+          ],
+          "to": [{ "key_code": "f12" }]
+        },
+        {
+          "description": "英数+2 = F2",
+          "type": "basic",
+          "from": { "key_code": "2", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "tab_held", "value": 1 },
+            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+          ],
+          "to": [{ "key_code": "f2" }]
+        },
+        {
           "description": "英数+3 = Backspace",
           "type": "basic",
           "from": { "key_code": "3", "modifiers": { "optional": ["any"] } },
@@ -423,18 +443,31 @@
           "to": [{ "key_code": "t", "modifiers": ["left_command", "left_shift"] }]
         },
         {
-          "description": "F13+F = Cmd+R (更新)",
+          "description": "F13+F (Parallels) = Ctrl+Cmd+7送出。Windows側AHKで最小化",
           "type": "basic",
           "from": { "key_code": "f", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
-          "to": [{ "key_code": "r", "modifiers": ["left_command"] }]
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "7", "modifiers": ["left_control", "left_command"] }]
         },
         {
-          "description": "F13+R = Cmd+M (ウィンドウ最小化)",
+          "description": "F13+F = Cmd+M (ウィンドウ最小化)",
+          "type": "basic",
+          "from": { "key_code": "f", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+            { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "key_code": "m", "modifiers": ["left_command"] }]
+        },
+        {
+          "description": "F13+R = Cmd+R (更新)",
           "type": "basic",
           "from": { "key_code": "r", "modifiers": { "optional": ["any"] } },
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
-          "to": [{ "key_code": "m", "modifiers": ["left_command"] }]
+          "to": [{ "key_code": "r", "modifiers": ["left_command"] }]
         },
         {
           "description": "F13+C (Parallels) = Ctrl+Cmd+3送出。Windows側AHKで処理",
