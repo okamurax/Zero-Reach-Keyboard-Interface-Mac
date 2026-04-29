@@ -78,6 +78,16 @@ hs.urlevent.bind("movetodisplay", function(_, params)
     setTargetFrame(target, kind, x, y, w, h)
 end)
 
+-- hammerspoon://minimizefocused
+-- フォーカス中のウィンドウを macOS native で最小化 (AXMinimized=true)。
+-- Parallels Coherence ウィンドウでも自作タスクバーから消えずグレーアウトで残る経路。
+-- Windows native の最小化 (AHK WinMinimize / タイトルバー / Win+Down) は Parallels 経由で
+-- macOS 側ウィンドウを「非表示」状態にしてしまい hs.window.allWindows() から脱落するため使えない。
+hs.urlevent.bind("minimizefocused", function(_, _)
+    local win = hs.window.focusedWindow()
+    if win then win:minimize() end
+end)
+
 -- hammerspoon://resizeModerate
 -- 1200x750 固定サイズ。位置は変えない
 -- リサイズ後にタイトルバー中央へカーソルを移動して、そのままドラッグで動かせるようにする
