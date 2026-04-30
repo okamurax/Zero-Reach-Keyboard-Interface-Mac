@@ -96,3 +96,9 @@ SwitchTabNext() {
     else
         Send("^{PgDn}")
 }
+
+; Excel: Shift+ホイール → 横スクロール (Excel 2016+ は WheelLeft/Right にネイティブ応答)
+#HotIf WinActive("ahk_exe EXCEL.EXE")
++WheelUp::Send("{WheelLeft}")
++WheelDown::Send("{WheelRight}")
+#HotIf

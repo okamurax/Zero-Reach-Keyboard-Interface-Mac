@@ -5,7 +5,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Ctrl+Opt+Space(Spotlight)、英数+4=Enter",
+                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter",
                         "manipulators": [
                             {
                                 "conditions": [
@@ -26,32 +26,6 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [{ "key_code": "escape" }],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "tab_held",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_unless",
-                                        "value": 1
-                                    }
-                                ],
-                                "description": "英数+W = Ctrl+Option+Space (Spotlight)",
-                                "from": {
-                                    "key_code": "w",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "spacebar",
-                                        "modifiers": ["left_control", "left_option"]
-                                    }
-                                ],
                                 "type": "basic"
                             },
                             {
