@@ -37,7 +37,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 ### ウィンドウ管理 (Hammerspoon)
 - `movetodisplay?idx=N` — N番目のディスプレイ (左から順) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。
 - `resizemoderate` — 1200x750 固定リサイズ (位置維持)。
-- `minimizefocused` — macOS native 最小化。Parallels Coherence でも自作タスクバーから消えずグレーアウトで残る。
+- `minimizedisplay` — フォーカス中のウィンドウが乗っているディスプレイ上の全ウィンドウを minimize。Parallels Coherence でも自作タスクバーから消えずグレーアウトで残る。
 - `triggerclaunch` — 任意の Mac アプリ前面から VM 内 CLaunch を呼出 (Coherence Winアプリへ activate → `Ctrl+Shift+F12` を Mac→VM 送出)。
 
 ### 自作Win風タスクバー (`taskbar.lua`)
@@ -94,7 +94,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | `A` | Ctrl+Shift+Tab (前タブ) | Explorer=Ctrl+Shift+Tab / 他=Ctrl+PgUp (AHK経由) |
 | `S` | Ctrl+Tab (次タブ) | Explorer=Ctrl+Tab / 他=Ctrl+PgDn (AHK経由) |
 | `D` | Cmd+Shift+T (閉じたタブを再開) | (同左) |
-| `F` | Cmd+M (最小化) | Hammerspoon 経由で macOS native 最小化 |
+| `F` | Hammerspoon 経由でアクティブディスプレイの全ウィンドウを最小化 | (同左) |
 | `R` | Cmd+R (更新) | F5 |
 | `1` | 左ディスプレイに移動+最大化 | (AHK経由で同等処理) |
 | `2` | 右ディスプレイに移動+最大化 | (AHK経由で同等処理) |

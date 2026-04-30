@@ -78,14 +78,24 @@ hs.urlevent.bind("movetodisplay", function(_, params)
     setTargetFrame(target, kind, x, y, w, h)
 end)
 
--- hammerspoon://minimizefocused
--- フォーカス中のウィンドウを macOS native で最小化 (AXMinimized=true)。
+-- hammerspoon://minimizedisplay
+-- フォーカス中のウィンドウが乗っているディスプレイ上の全ウィンドウを minimize する。
 -- Parallels Coherence ウィンドウでも自作タスクバーから消えずグレーアウトで残る経路。
 -- Windows native の最小化 (AHK WinMinimize / タイトルバー / Win+Down) は Parallels 経由で
 -- macOS 側ウィンドウを「非表示」状態にしてしまい hs.window.allWindows() から脱落するため使えない。
-hs.urlevent.bind("minimizefocused", function(_, _)
-    local win = hs.window.focusedWindow()
-    if win then win:minimize() end
+hs.urlevent.bind("minimizedisplay", function(_, _)
+    local focused = hs.window.focusedWindow()
+    if not focused then return end
+    local targetScreen = focused:screen()
+    if not targetScreen then return end
+
+    local screenId = targetScreen:id()
+    for _, win in ipairs(hs.window.allWindows()) do
+        local s = win:screen()
+        if s and s:id() == screenId and not win:isMinimized() then
+            win:minimize()
+        end
+    end
 end)
 
 -- hammerspoon://triggerclaunch
