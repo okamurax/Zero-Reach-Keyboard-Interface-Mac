@@ -82,41 +82,17 @@ hs.urlevent.bind("movetodisplay", function(_, params)
 end)
 
 -- hammerspoon://minimizedisplay
--- フォーカス中のウィンドウが乗っているディスプレイ上の全ウィンドウを minimize する。
--- Parallels Coherence ウィンドウでも自作タスクバーから消えずグレーアウトで残る経路。
--- Windows native の最小化 (AHK WinMinimize / タイトルバー / Win+Down) は Parallels 経由で
--- macOS 側ウィンドウを「非表示」状態にしてしまい hs.window.allWindows() から脱落するため使えない。
--- hs.window.allWindows() が一部アプリのウィンドウを取りこぼすため、全 runningApplications を走査する経路を採用。
+-- アクティブウィンドウ 1 つだけを minimize する。
+-- Finder は win:minimize() で AX 列挙から落ちる仕様のため app:hide() に分岐
+-- (app:hide() は全 Finder 窓に効くが taskbar 側で app:isHidden() を拾い続けるので消えない)。
 hs.urlevent.bind("minimizedisplay", function(_, _)
     local focused = hs.window.focusedWindow()
     if not focused then return end
-    local targetScreen = focused:screen()
-    if not targetScreen then return end
-
-    local screenId = targetScreen:id()
-    -- Finder は win:minimize() で AX 列挙から落ちて taskbar から消えるため、
-    -- 該当ディスプレイに Finder ウィンドウがあれば app:hide() で隠す。
-    -- (app:hide() はアプリ単位なので他ディスプレイの Finder 窓も一緒に隠れる。
-    --  ただし taskbar 側で app:isHidden() を見て元の画面別にグレーアウト表示できる)
-    local hideFinder = false
-    for _, app in ipairs(hs.application.runningApplications()) do
-        local isFinder = (app:bundleID() == "com.apple.finder")
-        for _, win in ipairs(app:allWindows() or {}) do
-            if win:isStandard() and not win:isMinimized() then
-                local s = win:screen()
-                if s and s:id() == screenId then
-                    if isFinder then
-                        hideFinder = true
-                    else
-                        win:minimize()
-                    end
-                end
-            end
-        end
-    end
-    if hideFinder then
-        local finder = hs.application.find("com.apple.finder")
-        if finder then finder:hide() end
+    local app = focused:application()
+    if app and app:bundleID() == "com.apple.finder" then
+        app:hide()
+    else
+        focused:minimize()
     end
 end)
 

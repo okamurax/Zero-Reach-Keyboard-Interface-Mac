@@ -37,7 +37,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 ### ウィンドウ管理 (Hammerspoon)
 - `movetodisplay?idx=N` — N番目のディスプレイ (左から順) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。
 - `resizemoderate` — 1200x750 固定リサイズ (位置維持)。
-- `minimizedisplay` — フォーカス中のウィンドウが乗っているディスプレイ上の全ウィンドウを minimize。Parallels Coherence でも自作タスクバーから消えずグレーアウトで残る。
+- `minimizedisplay` — アクティブウィンドウを最小化。Finder のみ app:hide() に分岐 (Finder は win:minimize() で AX 列挙から落ちて自作タスクバーから消える特殊仕様のため)。
 
 ### 自作Win風タスクバー (`taskbar.lua`)
 画面下に貼り付くタスクバーをディスプレイごとに表示。左クリックでアクティブ化、右側 × でクローズ。差分 render + アイコンキャッシュで負荷軽減、windowMoved を debounce 化。Adobe / Parallels の windowFilter 取りこぼし対策に 1 秒フォールバック refresh あり。
@@ -92,7 +92,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | `A` | Ctrl+Shift+Tab (前タブ) | Explorer=Ctrl+Shift+Tab / 他=Ctrl+PgUp (AHK経由) |
 | `S` | Ctrl+Tab (次タブ) | Explorer=Ctrl+Tab / 他=Ctrl+PgDn (AHK経由) |
 | `D` | Cmd+Shift+T (閉じたタブを再開) | (同左) |
-| `F` | Hammerspoon 経由でアクティブディスプレイの全ウィンドウを最小化 | (同左) |
+| `F` | Hammerspoon 経由でアクティブウィンドウを最小化 (Finder は app:hide()) | (同左) |
 | `R` | Cmd+R (更新) | F5 |
 | `1` | 左ディスプレイに移動+最大化 | (AHK経由で同等処理) |
 | `2` | 右ディスプレイに移動+最大化 | (AHK経由で同等処理) |

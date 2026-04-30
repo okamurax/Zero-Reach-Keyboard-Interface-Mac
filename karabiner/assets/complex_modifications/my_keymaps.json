@@ -469,7 +469,7 @@
           "to": [{ "key_code": "t", "modifiers": ["left_command", "left_shift"] }]
         },
         {
-          "description": "F13+F = Hammerspoon経由でアクティブディスプレイの全ウィンドウを最小化 (Mac/Parallels共通)",
+          "description": "F13+F = Hammerspoon経由でアクティブウィンドウを最小化 (Finderはapp:hideに分岐)",
           "type": "basic",
           "from": { "key_code": "f", "modifiers": { "optional": ["any"] } },
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
