@@ -91,19 +91,16 @@ hs.urlevent.bind("minimizedisplay", function(_, _)
     if not targetScreen then return end
 
     local screenId = targetScreen:id()
-    local minimized = 0
     for _, app in ipairs(hs.application.runningApplications()) do
         for _, win in ipairs(app:allWindows() or {}) do
             if win:isStandard() and not win:isMinimized() then
                 local s = win:screen()
                 if s and s:id() == screenId then
                     win:minimize()
-                    minimized = minimized + 1
                 end
             end
         end
     end
-    hs.alert.show("minimized: " .. minimized)
 end)
 
 -- hammerspoon://triggerclaunch
