@@ -1,6 +1,9 @@
 -- ウィンドウ操作の Hammerspoon 自前アニメーションを無効化（即時反映）
 hs.window.animationDuration = 0
 
+-- hammerspoon://reload で設定再読込を可能にする
+hs.urlevent.bind("reload", function() hs.reload() end)
+
 -- 画面下に貼り付くWin風タスクバー (ディスプレイ別)
 require("taskbar").start()
 
@@ -91,50 +94,30 @@ hs.urlevent.bind("minimizedisplay", function(_, _)
     if not targetScreen then return end
 
     local screenId = targetScreen:id()
+    -- Finder は win:minimize() で AX 列挙から落ちて taskbar から消えるため、
+    -- 該当ディスプレイに Finder ウィンドウがあれば app:hide() で隠す。
+    -- (app:hide() はアプリ単位なので他ディスプレイの Finder 窓も一緒に隠れる。
+    --  ただし taskbar 側で app:isHidden() を見て元の画面別にグレーアウト表示できる)
+    local hideFinder = false
     for _, app in ipairs(hs.application.runningApplications()) do
+        local isFinder = (app:bundleID() == "com.apple.finder")
         for _, win in ipairs(app:allWindows() or {}) do
             if win:isStandard() and not win:isMinimized() then
                 local s = win:screen()
                 if s and s:id() == screenId then
-                    win:minimize()
+                    if isFinder then
+                        hideFinder = true
+                    else
+                        win:minimize()
+                    end
                 end
             end
         end
     end
-end)
-
--- hammerspoon://triggerclaunch
--- 直近に使った Parallels 関連ウィンドウ (VMコンソール / Coherence Windowsアプリ) にフォーカスを
--- 移してから Ctrl+Shift+F12 を送出 → Windows 側グローバルホットキーで CLaunch を呼ぶ。
--- CLaunch は VM 内で常駐 (Windowsスタートアップ登録) されている前提。
--- Mac側のどのアプリにフォーカスがあっても VM 内に届くので「どこからでも CLaunch」が成立する。
-hs.urlevent.bind("triggerclaunch", function(_, _)
-    -- 優先順位: (1) Coherence Windows アプリ (com.parallels.winapp.*)
-    --          (2) Parallels Desktop 本体 (com.parallels.desktop.console)
-    -- Coherence では各 Windows アプリが別プロセス。本体ではなく winapp.* を activate しないと
-    -- VM 内に入力フォーカスが届かないため、可視ウィンドウを持つ winapp を優先する。
-    local coherence, console = nil, nil
-    for _, app in ipairs(hs.application.runningApplications()) do
-        local bid = app:bundleID() or ""
-        if bid:match("^com%.parallels%.winapp%.") then
-            local wins = app:visibleWindows()
-            if wins and #wins > 0 then
-                coherence = app
-                break
-            elseif not coherence then
-                coherence = app
-            end
-        elseif bid == "com.parallels.desktop.console" then
-            console = app
-        end
+    if hideFinder then
+        local finder = hs.application.find("com.apple.finder")
+        if finder then finder:hide() end
     end
-
-    local target = coherence or console
-    if not target then return end
-    target:activate()
-    hs.timer.doAfter(0.25, function()
-        hs.eventtap.keyStroke({"ctrl", "shift"}, "f12", 0)
-    end)
 end)
 
 -- hammerspoon://resizeModerate

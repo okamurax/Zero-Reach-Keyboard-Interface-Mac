@@ -38,7 +38,6 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - `movetodisplay?idx=N` — N番目のディスプレイ (左から順) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。
 - `resizemoderate` — 1200x750 固定リサイズ (位置維持)。
 - `minimizedisplay` — フォーカス中のウィンドウが乗っているディスプレイ上の全ウィンドウを minimize。Parallels Coherence でも自作タスクバーから消えずグレーアウトで残る。
-- `triggerclaunch` — 任意の Mac アプリ前面から VM 内 CLaunch を呼出 (Coherence Winアプリへ activate → `Ctrl+Shift+F12` を Mac→VM 送出)。
 
 ### 自作Win風タスクバー (`taskbar.lua`)
 画面下に貼り付くタスクバーをディスプレイごとに表示。左クリックでアクティブ化、右側 × でクローズ。差分 render + アイコンキャッシュで負荷軽減、windowMoved を debounce 化。Adobe / Parallels の windowFilter 取りこぼし対策に 1 秒フォールバック refresh あり。
@@ -75,7 +74,6 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 |---|---|
 | `Q` | ESC |
 | `W` | Cmd+Opt+Space (Spotlight) |
-| `E` | どこからでも CLaunch (Hammerspoon → Parallels) |
 | `1` | F12 |
 | `2` | F2 |
 | `3` | Backspace |

@@ -25,20 +25,6 @@
           "to": [{ "key_code": "spacebar", "modifiers": ["left_control", "left_option"] }]
         },
         {
-          "description": "英数+E = Hammerspoon経由でParallelsをfocus→Ctrl+Shift+F12送出。VM常駐CLaunchをホットキーで呼出 (どこからでも)",
-          "type": "basic",
-          "from": { "key_code": "e", "modifiers": { "optional": ["any"] } },
-          "conditions": [
-            { "type": "variable_if", "name": "tab_held", "value": 1 },
-            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
-          ],
-          "to": [
-            {
-              "shell_command": "open -g 'hammerspoon://triggerclaunch'"
-            }
-          ]
-        },
-        {
           "description": "英数+1 = F12",
           "type": "basic",
           "from": { "key_code": "1", "modifiers": { "optional": ["any"] } },

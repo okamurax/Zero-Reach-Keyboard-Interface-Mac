@@ -50,11 +50,18 @@ end
 -- 最小化中もタスクバーに残す (クリックで復元するWin風挙動のため)
 -- Hammerspoon自身(canvas)は除外
 local function isTaskable(win)
-    if not win or not win:isStandard() then return false end
+    if not win then return false end
     local app = win:application()
     if not app then return false end
     if app:bundleID() == "org.hammerspoon.Hammerspoon" then return false end
-    return true
+    if win:isStandard() then return true end
+    -- Finder は app:hide() 中に win:isStandard() が false に変わるため特例で許可。
+    -- 無題ウィンドウ (デスクトップ用) は除外したいので title 必須。
+    if app:bundleID() == "com.apple.finder" and app:isHidden() then
+        local t = win:title()
+        if t and t ~= "" then return true end
+    end
+    return false
 end
 
 -- ディスプレイ毎にウィンドウをグループ化
@@ -91,7 +98,8 @@ local function renderBar(bar, wins)
             win = win,
             id = win:id(),
             title = title,
-            isMin = win:isMinimized(),
+            -- Finder の app:hide() もグレーアウト扱い (個別 minimize は出来ないため)
+            isMin = win:isMinimized() or (app and app:isHidden()) or false,
             isActive = (win:id() == focusedId),
             app = app,
         }
@@ -237,16 +245,23 @@ local function refresh()
                     elseif x >= item.x1 and x <= item.x2 then
                         local win = item.win
                         if not win then return end
-                        if win:isMinimized() then
-                            -- 最小化中: 復元 + フォーカス
-                            win:unminimize()
+                        local app = win:application()
+                        local isHidden = app and app:isHidden()
+                        if win:isMinimized() or isHidden then
+                            -- 最小化 or hide 中: 復元 + フォーカス
+                            if isHidden then app:unhide() end
+                            if win:isMinimized() then win:unminimize() end
                             win:focus()
                             win:raise()
                         else
                             local focused = hs.window.focusedWindow()
                             if focused and focused:id() == win:id() then
-                                -- アクティブ中: 最小化
-                                win:minimize()
+                                -- アクティブ中: Finder は hide、他は minimize
+                                if app and app:bundleID() == "com.apple.finder" then
+                                    app:hide()
+                                else
+                                    win:minimize()
+                                end
                             else
                                 -- 非アクティブ: 前面に
                                 win:focus()
@@ -303,6 +318,15 @@ function M.start()
         refresh()
     end):start()
 
+    -- app:hide() / unhide は windowFilter の通常イベントで拾えないので
+    -- application.watcher で hidden/unhidden を捉えて再描画
+    M._appWatcher = hs.application.watcher.new(function(_, eventType, _)
+        if eventType == hs.application.watcher.hidden
+            or eventType == hs.application.watcher.unhidden then
+            refresh()
+        end
+    end):start()
+
     refresh()
 end
 
@@ -311,6 +335,7 @@ function M.stop()
     if moveDebounce then moveDebounce:stop(); moveDebounce = nil end
     if windowFilter then windowFilter:unsubscribeAll(); windowFilter = nil end
     if M._screenWatcher then M._screenWatcher:stop(); M._screenWatcher = nil end
+    if M._appWatcher then M._appWatcher:stop(); M._appWatcher = nil end
     for id, bar in pairs(bars) do
         bar.canvas:delete()
         bars[id] = nil
