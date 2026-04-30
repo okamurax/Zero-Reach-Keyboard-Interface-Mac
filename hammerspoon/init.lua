@@ -83,6 +83,7 @@ end)
 -- Parallels Coherence ウィンドウでも自作タスクバーから消えずグレーアウトで残る経路。
 -- Windows native の最小化 (AHK WinMinimize / タイトルバー / Win+Down) は Parallels 経由で
 -- macOS 側ウィンドウを「非表示」状態にしてしまい hs.window.allWindows() から脱落するため使えない。
+-- hs.window.allWindows() が一部アプリのウィンドウを取りこぼすため、全 runningApplications を走査する経路を採用。
 hs.urlevent.bind("minimizedisplay", function(_, _)
     local focused = hs.window.focusedWindow()
     if not focused then return end
@@ -90,12 +91,19 @@ hs.urlevent.bind("minimizedisplay", function(_, _)
     if not targetScreen then return end
 
     local screenId = targetScreen:id()
-    for _, win in ipairs(hs.window.allWindows()) do
-        local s = win:screen()
-        if s and s:id() == screenId and not win:isMinimized() then
-            win:minimize()
+    local minimized = 0
+    for _, app in ipairs(hs.application.runningApplications()) do
+        for _, win in ipairs(app:allWindows() or {}) do
+            if win:isStandard() and not win:isMinimized() then
+                local s = win:screen()
+                if s and s:id() == screenId then
+                    win:minimize()
+                    minimized = minimized + 1
+                end
+            end
         end
     end
+    hs.alert.show("minimized: " .. minimized)
 end)
 
 -- hammerspoon://triggerclaunch

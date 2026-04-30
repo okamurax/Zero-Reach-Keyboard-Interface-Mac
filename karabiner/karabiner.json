@@ -1143,49 +1143,14 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+F (Parallels) = Hammerspoon経由で macOS native 最小化 (自作タスクバーから消えない)",
+                                "description": "F13+F = Hammerspoon経由でアクティブディスプレイの全ウィンドウを最小化 (Mac/Parallels共通)",
                                 "from": {
                                     "key_code": "f",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://minimizefocused'" }],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_unless"
-                                    }
-                                ],
-                                "description": "F13+F = Cmd+M (ウィンドウ最小化)",
-                                "from": {
-                                    "key_code": "f",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "m",
-                                        "modifiers": ["left_command"]
-                                    }
-                                ],
+                                "to": [{ "shell_command": "open -g 'hammerspoon://minimizedisplay'" }],
                                 "type": "basic"
                             },
                             {
