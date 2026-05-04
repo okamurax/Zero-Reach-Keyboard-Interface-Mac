@@ -5,7 +5,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Hyper+W(Raycast)、英数+4=Enter",
+                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Launchフォルダを開く、英数+4=Enter",
                         "manipulators": [
                             {
                                 "conditions": [
@@ -41,16 +41,13 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "英数+W = Hyper+W (Raycast呼出用)",
+                                "description": "英数+W = /Volumes/SN850X/Dropbox/Workspace/Launch を開く",
                                 "from": {
                                     "key_code": "w",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
-                                    {
-                                        "key_code": "w",
-                                        "modifiers": ["left_control", "left_option", "left_command", "left_shift"]
-                                    }
+                                    { "shell_command": "open '/Volumes/SN850X/Dropbox/Workspace/Launch'" }
                                 ],
                                 "type": "basic"
                             },
@@ -921,7 +918,7 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+W (Parallels) = Ctrl+Cmd+7送出。AHKでAlt+Right (Explorer/ブラウザ進む)。F13+F最小化が空けた7番を再利用",
+                                "description": "F13+W (Parallels) = Ctrl+Cmd+7送出。AHKでAlt+Right (Explorer/ブラウザ進む)",
                                 "from": {
                                     "key_code": "w",
                                     "modifiers": { "optional": ["any"] }
@@ -1122,22 +1119,6 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
-                                    }
-                                ],
-                                "description": "F13+F = Hammerspoon経由でアクティブウィンドウを最小化 (Finderはapp:hideに分岐)",
-                                "from": {
-                                    "key_code": "f",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://minimizedisplay'" }],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
                                     },
                                     {
                                         "bundle_identifiers": [
@@ -1147,9 +1128,9 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+R (Parallels) = F5 (Explorer/ブラウザ更新)",
+                                "description": "F13+F (Parallels) = F5 (Explorer/ブラウザ更新)",
                                 "from": {
-                                    "key_code": "r",
+                                    "key_code": "f",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [{ "key_code": "f5" }],
@@ -1170,9 +1151,9 @@
                                         "type": "frontmost_application_unless"
                                     }
                                 ],
-                                "description": "F13+R = Cmd+R (更新)",
+                                "description": "F13+F = Cmd+R (更新)",
                                 "from": {
-                                    "key_code": "r",
+                                    "key_code": "f",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [

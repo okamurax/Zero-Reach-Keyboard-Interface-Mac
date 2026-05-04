@@ -2,7 +2,7 @@
   "title": "My Keymaps",
   "rules": [
     {
-      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Ctrl+Opt+Space(Spotlight)、英数+4=Enter",
+      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Launchフォルダを開く、英数+4=Enter",
       "manipulators": [
         {
           "description": "英数+Q = ESC",
@@ -15,14 +15,14 @@
           "to": [{ "key_code": "escape" }]
         },
         {
-          "description": "英数+W = Ctrl+Option+Space (Spotlight)",
+          "description": "英数+W = /Volumes/SN850X/Dropbox/Workspace/Launch を開く",
           "type": "basic",
           "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "tab_held", "value": 1 },
             { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
           ],
-          "to": [{ "key_code": "spacebar", "modifiers": ["left_control", "left_option"] }]
+          "to": [{ "shell_command": "open '/Volumes/SN850X/Dropbox/Workspace/Launch'" }]
         },
         {
           "description": "英数+1 = F12",
@@ -395,7 +395,7 @@
           "to": [{ "key_code": "close_bracket", "modifiers": ["left_command"] }]
         },
         {
-          "description": "F13+W (Parallels) = Ctrl+Cmd+7送出。AHKでAlt+Right (Explorer/ブラウザ進む)。F13+F最小化が空けた7番を再利用",
+          "description": "F13+W (Parallels) = Ctrl+Cmd+7送出。AHKでAlt+Right (Explorer/ブラウザ進む)",
           "type": "basic",
           "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
           "conditions": [
@@ -469,20 +469,9 @@
           "to": [{ "key_code": "t", "modifiers": ["left_command", "left_shift"] }]
         },
         {
-          "description": "F13+F = Hammerspoon経由でアクティブウィンドウを最小化 (Finderはapp:hideに分岐)",
+          "description": "F13+F (Parallels) = F5 (Explorer/ブラウザ更新)",
           "type": "basic",
           "from": { "key_code": "f", "modifiers": { "optional": ["any"] } },
-          "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
-          "to": [
-            {
-              "shell_command": "open -g 'hammerspoon://minimizedisplay'"
-            }
-          ]
-        },
-        {
-          "description": "F13+R (Parallels) = F5 (Explorer/ブラウザ更新)",
-          "type": "basic",
-          "from": { "key_code": "r", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "f13_pressed", "value": 1 },
             { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
@@ -490,9 +479,9 @@
           "to": [{ "key_code": "f5" }]
         },
         {
-          "description": "F13+R = Cmd+R (更新)",
+          "description": "F13+F = Cmd+R (更新)",
           "type": "basic",
-          "from": { "key_code": "r", "modifiers": { "optional": ["any"] } },
+          "from": { "key_code": "f", "modifiers": { "optional": ["any"] } },
           "conditions": [
             { "type": "variable_if", "name": "f13_pressed", "value": 1 },
             { "type": "frontmost_application_unless", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
