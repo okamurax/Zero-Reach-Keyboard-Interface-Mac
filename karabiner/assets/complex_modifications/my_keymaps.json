@@ -2,7 +2,7 @@
   "title": "My Keymaps",
   "rules": [
     {
-      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+W=Launchフォルダを開く、英数+4=Enter",
+      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter",
       "manipulators": [
         {
           "description": "英数+Q = ESC",
@@ -13,16 +13,6 @@
             { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
           ],
           "to": [{ "key_code": "escape" }]
-        },
-        {
-          "description": "英数+W = /Volumes/SN850X/Dropbox/Workspace/Launch を開く",
-          "type": "basic",
-          "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
-          "conditions": [
-            { "type": "variable_if", "name": "tab_held", "value": 1 },
-            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
-          ],
-          "to": [{ "shell_command": "open '/Volumes/SN850X/Dropbox/Workspace/Launch'" }]
         },
         {
           "description": "英数+1 = F12",

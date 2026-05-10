@@ -73,7 +73,6 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | キー | 機能 |
 |---|---|
 | `Q` | ESC |
-| `W` | Cmd+Opt+Space (Spotlight) |
 | `1` | F12 |
 | `2` | F2 |
 | `3` | Backspace |
