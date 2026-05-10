@@ -15,7 +15,8 @@ local ITEM_GAP     = 4
 local ITEM_PAD     = 6
 local CLOSE_W      = 21
 local ICON_W       = 21
-local FONT_SIZE    = 11
+local FONT_SIZE    = 13
+local FONT_NAME    = ".AppleSystemUIFont"
 local BG_COLOR     = { red = 0.10, green = 0.10, blue = 0.10, alpha = 0.92 }
 local ITEM_BG      = { red = 0.20, green = 0.20, blue = 0.20, alpha = 1.0 }
 local ITEM_BG_ACT  = { red = 0.30, green = 0.45, blue = 0.75, alpha = 1.0 }
@@ -164,11 +165,12 @@ local function renderBar(bar, wins)
             type = "text",
             text = title,
             textColor = isMin and TEXT_MIN or TEXT_COLOR,
+            textFont = FONT_NAME,
             textSize = FONT_SIZE,
             textLineBreak = "truncateTail",
             frame = {
                 x = x + 4 + ICON_W + 4,
-                y = (BAR_H - FONT_SIZE) / 2 - 2,
+                y = math.floor((BAR_H - FONT_SIZE) / 2 - 2),
                 w = ITEM_W - ICON_W - CLOSE_W - 12,
                 h = FONT_SIZE + 4,
             },
@@ -180,9 +182,10 @@ local function renderBar(bar, wins)
             type = "text",
             text = "×",
             textColor = CLOSE_COLOR,
+            textFont = FONT_NAME,
             textSize = FONT_SIZE + 4,
             textAlignment = "center",
-            frame = { x = closeX, y = (BAR_H - FONT_SIZE - 4) / 2 - 2, w = CLOSE_W, h = FONT_SIZE + 8 },
+            frame = { x = closeX, y = math.floor((BAR_H - FONT_SIZE - 4) / 2 - 2), w = CLOSE_W, h = FONT_SIZE + 8 },
         }
 
         table.insert(bar.items, {
