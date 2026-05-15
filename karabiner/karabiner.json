@@ -5,7 +5,7 @@
             "complex_modifications": {
                 "rules": [
                     {
-                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter",
+                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter、英数+W=Spotlight(Cmd+F14、Mac/Parallels両対応)",
                         "manipulators": [
                             {
                                 "conditions": [
@@ -110,6 +110,32 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [{ "key_code": "return_or_enter" }],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "tab_held",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_unless",
+                                        "value": 1
+                                    }
+                                ],
+                                "description": "英数+W = Cmd+F14 (Spotlight)。macOS側で SpotlightをCmd+F14に登録済み (symbolichotkeys ID:64)。F14系はParallelsがグラブしないためMac/Parallels両対応 (AltTabのCmd+F13と同じ思想)",
+                                "from": {
+                                    "key_code": "w",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "f14",
+                                        "modifiers": ["left_command"]
+                                    }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -1230,6 +1256,55 @@
                                     {
                                         "key_code": "z",
                                         "modifiers": ["left_option", "left_shift"]
+                                    }
+                                ],
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Parallels内でCmd+Shift+5 / Ctrl+Shift+5 のキャプチャを動作させる (Parallelsがキーをグラブする問題を回避)",
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "Cmd+Shift+5 (Parallels) = Screenshot.app 起動。Karabinerでキーを消費しシェル経由でアプリ起動することでParallelsのキーグラブを迂回",
+                                "from": {
+                                    "key_code": "5",
+                                    "modifiers": { "mandatory": ["left_command", "left_shift"], "optional": ["caps_lock"] }
+                                },
+                                "to": [
+                                    {
+                                        "shell_command": "/usr/bin/open -a /System/Applications/Utilities/Screenshot.app"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "Ctrl+Shift+5 (Parallels) = Screenshot.app 起動。Simple Modで Cmd↔Ctrl が逆方向に解釈された場合のフォールバック (AltTabのCmd+F13/Ctrl+F13両対応と同じ思想)",
+                                "from": {
+                                    "key_code": "5",
+                                    "modifiers": { "mandatory": ["left_control", "left_shift"], "optional": ["caps_lock"] }
+                                },
+                                "to": [
+                                    {
+                                        "shell_command": "/usr/bin/open -a /System/Applications/Utilities/Screenshot.app"
                                     }
                                 ],
                                 "type": "basic"

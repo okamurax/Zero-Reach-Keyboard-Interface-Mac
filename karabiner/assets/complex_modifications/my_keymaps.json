@@ -2,7 +2,7 @@
   "title": "My Keymaps",
   "rules": [
     {
-      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter",
+      "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter、英数+W=Spotlight(Cmd+F14、Mac/Parallels両対応)",
       "manipulators": [
         {
           "description": "英数+Q = ESC",
@@ -53,6 +53,16 @@
             { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
           ],
           "to": [{ "key_code": "return_or_enter" }]
+        },
+        {
+          "description": "英数+W = Cmd+F14 (Spotlight)。macOS側で SpotlightをCmd+F14に登録済み (symbolichotkeys ID:64)。F14系はParallelsがグラブしないためMac/Parallels両対応 (AltTabのCmd+F13と同じ思想)",
+          "type": "basic",
+          "from": { "key_code": "w", "modifiers": { "optional": ["any"] } },
+          "conditions": [
+            { "type": "variable_if", "name": "tab_held", "value": 1 },
+            { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+          ],
+          "to": [{ "key_code": "f14", "modifiers": ["left_command"] }]
         },
         {
           "description": "【2回目・Parallels】Ctrl+Cmd+5送出 (Windows IME ON)",
@@ -515,6 +525,29 @@
           "from": { "key_code": "z", "modifiers": { "optional": ["any"] } },
           "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
           "to": [{ "key_code": "z", "modifiers": ["left_option", "left_shift"] }]
+        }
+      ]
+    },
+    {
+      "description": "Parallels内でCmd+Shift+5 / Ctrl+Shift+5 のキャプチャを動作させる (Parallelsがキーをグラブする問題を回避)",
+      "manipulators": [
+        {
+          "description": "Cmd+Shift+5 (Parallels) = Screenshot.app 起動。Karabinerでキーを消費しシェル経由でアプリ起動することでParallelsのキーグラブを迂回",
+          "type": "basic",
+          "from": { "key_code": "5", "modifiers": { "mandatory": ["left_command", "left_shift"], "optional": ["caps_lock"] } },
+          "conditions": [
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "shell_command": "/usr/bin/open -a /System/Applications/Utilities/Screenshot.app" }]
+        },
+        {
+          "description": "Ctrl+Shift+5 (Parallels) = Screenshot.app 起動。Simple Modで Cmd↔Ctrl が逆方向に解釈された場合のフォールバック (AltTabのCmd+F13/Ctrl+F13両対応と同じ思想)",
+          "type": "basic",
+          "from": { "key_code": "5", "modifiers": { "mandatory": ["left_control", "left_shift"], "optional": ["caps_lock"] } },
+          "conditions": [
+            { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+          ],
+          "to": [{ "shell_command": "/usr/bin/open -a /System/Applications/Utilities/Screenshot.app" }]
         }
       ]
     },
