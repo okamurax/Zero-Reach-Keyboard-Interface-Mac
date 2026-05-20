@@ -5,7 +5,8 @@
 -- 設計メモ:
 --   * hs.canvas をディスプレイごとに1枚ずつ作る
 --   * hs.window.filter のサブスクリプションで再描画
---   * 1秒のフォールバック refresh は filter が取りこぼす Adobe/Parallels 対策
+--   * 全イベントは scheduleRefresh で 50ms にまとめて主スレッド負荷を抑える
+--   * 8秒間隔のフォールバック refresh は filter が取りこぼす Adobe/Parallels 対策
 
 local M = {}
 
@@ -29,7 +30,38 @@ local CLOSE_COLOR  = { red = 0.85, green = 0.30, blue = 0.30, alpha = 1.0 }
 local bars = {}
 local refreshTimer
 local windowFilter
-local moveDebounce
+local refreshDebounce
+local lastScreenSig = ""
+local refresh -- forward declaration
+
+-- バースト発火するイベントを 200ms trailing debounce で1回に集約
+-- (Tahoe の Liquid Glass が windowTitleChanged を連射する対策)
+-- タイトル変化の体感反映 200ms 以内なら誤差。AX列挙コストを抑える。
+local function scheduleRefresh()
+    if refreshDebounce then refreshDebounce:stop() end
+    refreshDebounce = hs.timer.doAfter(0.2, function()
+        refreshDebounce = nil
+        refresh()
+    end)
+end
+
+-- filter 取りこぼし対策のフォールバックポーリング (8秒間隔)
+-- ディスプレイスリープ中は止める (寝てる画面に描画して AppKit エラーを吐くため)
+local function startPoll()
+    if refreshTimer then return end
+    refreshTimer = hs.timer.doEvery(8, scheduleRefresh)
+end
+local function stopPoll()
+    if refreshTimer then refreshTimer:stop(); refreshTimer = nil end
+end
+
+-- 現在のスクリーンID集合を表す文字列 (構成変化検出用)
+local function currentScreenSig()
+    local ids = {}
+    for _, s in ipairs(hs.screen.allScreens()) do ids[#ids + 1] = s:id() end
+    table.sort(ids)
+    return table.concat(ids, ",")
+end
 
 -- bundleID -> hs.image (false = 取得失敗をキャッシュして再試行を抑制)
 local iconCache = {}
@@ -199,7 +231,7 @@ local function renderBar(bar, wins)
 end
 
 -- バーを必要なら作成、不要なら破棄、全部renderする
-local function refresh()
+refresh = function()
     local grouped = groupWindowsByScreen()
 
     -- 全ディスプレイに対してバーを出す (ウィンドウが無くても空バーを表示)
@@ -239,41 +271,45 @@ local function refresh()
             canvas:clickActivating(false)
             canvas:mouseCallback(function(_, msg, _, x, y)
                 if msg ~= "mouseDown" then return end
-                local b = bars[id]
-                if not b then return end
-                for _, item in ipairs(b.items) do
-                    if x >= item.cx1 and x <= item.cx2 then
-                        if item.win then item.win:close() end
-                        return
-                    elseif x >= item.x1 and x <= item.x2 then
-                        local win = item.win
-                        if not win then return end
-                        local app = win:application()
-                        local isHidden = app and app:isHidden()
-                        if win:isMinimized() or isHidden then
-                            -- 最小化 or hide 中: 復元 + フォーカス
-                            if isHidden then app:unhide() end
-                            if win:isMinimized() then win:unminimize() end
-                            win:focus()
-                            win:raise()
-                        else
-                            local focused = hs.window.focusedWindow()
-                            if focused and focused:id() == win:id() then
-                                -- アクティブ中: Finder は hide、他は minimize
-                                if app and app:bundleID() == "com.apple.finder" then
-                                    app:hide()
-                                else
-                                    win:minimize()
-                                end
-                            else
-                                -- 非アクティブ: 前面に
+                -- ターゲットアプリ終了直後の AX 例外などで callback 全体が死ぬのを防ぐ
+                local ok, err = pcall(function()
+                    local b = bars[id]
+                    if not b then return end
+                    for _, item in ipairs(b.items) do
+                        if x >= item.cx1 and x <= item.cx2 then
+                            if item.win then item.win:close() end
+                            return
+                        elseif x >= item.x1 and x <= item.x2 then
+                            local win = item.win
+                            if not win then return end
+                            local app = win:application()
+                            local isHidden = app and app:isHidden()
+                            if win:isMinimized() or isHidden then
+                                -- 最小化 or hide 中: 復元 + フォーカス
+                                if isHidden then app:unhide() end
+                                if win:isMinimized() then win:unminimize() end
                                 win:focus()
                                 win:raise()
+                            else
+                                local focused = hs.window.focusedWindow()
+                                if focused and focused:id() == win:id() then
+                                    -- アクティブ中: Finder は hide、他は minimize
+                                    if app and app:bundleID() == "com.apple.finder" then
+                                        app:hide()
+                                    else
+                                        win:minimize()
+                                    end
+                                else
+                                    -- 非アクティブ: 前面に
+                                    win:focus()
+                                    win:raise()
+                                end
                             end
+                            return
                         end
-                        return
                     end
-                end
+                end)
+                if not ok then hs.printf("[taskbar] click failed: %s", err) end
             end)
             canvas:canvasMouseEvents(true, true, false, false)
             canvas:show()
@@ -292,7 +328,13 @@ end
 function M.start()
     if windowFilter then return end
 
+    -- 起動時点のスクリーン構成を覚えておく (screen.watcher の誤発火フィルタ用)
+    lastScreenSig = currentScreenSig()
+
     windowFilter = hs.window.filter.new(nil)
+    -- すべてのイベントは scheduleRefresh 経由で 200ms にまとめる
+    -- windowMoved は購読しない (タスクバーは位置を表示しないので不要)。
+    -- ディスプレイ間移動は 8秒 poll または以後の focus/title イベントで拾える。
     windowFilter:subscribe({
         hs.window.filter.windowCreated,
         hs.window.filter.windowDestroyed,
@@ -301,24 +343,24 @@ function M.start()
         hs.window.filter.windowMinimized,
         hs.window.filter.windowUnminimized,
         hs.window.filter.windowTitleChanged,
-    }, function() refresh() end)
+    }, scheduleRefresh)
 
-    -- windowMoved はドラッグ中に大量発火するので debounce で1回に集約
-    windowFilter:subscribe(hs.window.filter.windowMoved, function()
-        if moveDebounce then moveDebounce:stop() end
-        moveDebounce = hs.timer.doAfter(0.15, refresh)
-    end)
-
-    -- filter が取りこぼす環境(Adobe / Parallels)向けの保険
-    refreshTimer = hs.timer.doEvery(3, refresh)
+    -- filter が取りこぼす環境(Adobe / Parallels)向けの保険ポーリング
+    startPoll()
 
     -- ディスプレイ構成変更で全部作り直し
+    -- Tahoe は Stage Manager/sleep復帰/カラープロファイル変更で誤発火しやすいので
+    -- スクリーンID集合に変化があったときだけ canvas を再生成する
     M._screenWatcher = hs.screen.watcher.new(function()
-        for id, bar in pairs(bars) do
-            bar.canvas:delete()
-            bars[id] = nil
+        local sig = currentScreenSig()
+        if sig ~= lastScreenSig then
+            lastScreenSig = sig
+            for id, bar in pairs(bars) do
+                bar.canvas:delete()
+                bars[id] = nil
+            end
         end
-        refresh()
+        scheduleRefresh()
     end):start()
 
     -- app:hide() / unhide は windowFilter の通常イベントで拾えないので
@@ -326,7 +368,17 @@ function M.start()
     M._appWatcher = hs.application.watcher.new(function(_, eventType, _)
         if eventType == hs.application.watcher.hidden
             or eventType == hs.application.watcher.unhidden then
-            refresh()
+            scheduleRefresh()
+        end
+    end):start()
+
+    -- ディスプレイスリープ中はポーリングを止める (寝てる画面への描画でAppKitエラー)
+    M._caffeinateWatcher = hs.caffeinate.watcher.new(function(eventType)
+        if eventType == hs.caffeinate.watcher.screensDidSleep then
+            stopPoll()
+        elseif eventType == hs.caffeinate.watcher.screensDidWake then
+            startPoll()
+            scheduleRefresh()
         end
     end):start()
 
@@ -334,11 +386,12 @@ function M.start()
 end
 
 function M.stop()
-    if refreshTimer then refreshTimer:stop(); refreshTimer = nil end
-    if moveDebounce then moveDebounce:stop(); moveDebounce = nil end
+    stopPoll()
+    if refreshDebounce then refreshDebounce:stop(); refreshDebounce = nil end
     if windowFilter then windowFilter:unsubscribeAll(); windowFilter = nil end
     if M._screenWatcher then M._screenWatcher:stop(); M._screenWatcher = nil end
     if M._appWatcher then M._appWatcher:stop(); M._appWatcher = nil end
+    if M._caffeinateWatcher then M._caffeinateWatcher:stop(); M._caffeinateWatcher = nil end
     for id, bar in pairs(bars) do
         bar.canvas:delete()
         bars[id] = nil
