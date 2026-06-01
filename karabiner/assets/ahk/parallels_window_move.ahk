@@ -12,9 +12,11 @@
 ;   Ctrl+Win+8 = 前タブ (F13+A 相当 / Explorer=Ctrl+Shift+Tab、他=Ctrl+PageUp)
 ;   Ctrl+Win+9 = 次タブ (F13+S 相当 / Explorer=Ctrl+Tab、他=Ctrl+PageDown)
 ;   Ctrl+Win+0 = Alt+Left  (F13+Q 相当 / Explorer/ブラウザ戻る)
-; ※ F13+F の最小化は Hammerspoon 経由 (hammerspoon://minimizefocused) に移行済み。
+; ※ 最小化は Hammerspoon 側 (hammerspoon://minimizedisplay) に実装あり。
 ;    AHK の WinMinimize は Parallels Coherence では macOS 側で「非表示」扱いとなり
-;    Hammerspoon 自作タスクバーから消える問題があったため。
+;    Hammerspoon 自作タスクバーから消える問題があったため AHK では扱わない。
+;    現状この URL はどのキーにも割り当てていない (F13+F は「更新」に再割当て済み)。
+;    最小化を使いたい場合は karabiner 側で minimizedisplay へバインドすること。
 ; ※ F13+Q/W は Opt+矢印 だと macOS の単語移動ショートカットと競合し Parallels に届かないため
 ;    AHKトンネル経由に変更。
 

@@ -87,6 +87,8 @@ end)
 
 -- hammerspoon://minimizedisplay
 -- アクティブウィンドウ 1 つだけを minimize する。
+-- 注: 現状この URL は karabiner のどのキーにも割り当てていない (F13+F は「更新」に変更済み)。
+--     手動 URL 起動や将来の再バインド用に残してある。
 -- Finder は win:minimize() で AX 列挙から落ちる仕様のため app:hide() に分岐
 -- (app:hide() は全 Finder 窓に効くが taskbar 側で app:isHidden() を拾い続けるので消えない)。
 hs.urlevent.bind("minimizedisplay", function(_, _)
