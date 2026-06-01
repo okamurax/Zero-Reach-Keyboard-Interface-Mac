@@ -28,7 +28,8 @@ local TEXT_COLOR   = { white = 0.95 }
 local TEXT_MIN     = { white = 0.55 }
 local CLOSE_COLOR  = { red = 0.85, green = 0.30, blue = 0.30, alpha = 1.0 }
 
--- screenId -> { canvas, items = { {win, frame, closeFrame}, ... } }
+-- screenId -> { canvas, w, lastSig, lastDropped, items = { {win, x1, x2, cx1, cx2}, ... } }
+--   items の x1..x2 が本体クリック領域、cx1..cx2 が × の領域 (canvas ローカル座標)
 local bars = {}
 local refreshTimer
 local windowFilter
