@@ -185,7 +185,10 @@ end)
 local EISU_KEYCODE        = 102   -- kVK_JIS_Eisu
 local KANA_KEYCODE        = 104   -- kVK_JIS_Kana
 local KEY4_KEYCODE        = 21    -- kVK_ANSI_4 (Parallels時の Ctrl+Cmd+4)
-local EISU_DOUBLE_TAP_SEC = 0.3
+-- 0.5秒。純粋な連打だけなら0.3で足りるが、間に1打(Backspace等)挟むと
+-- その分の時間が乗るため、介在キーを許容できるよう少し広げてある。
+-- 広げすぎると「英数→素早く数文字→英数」が誤ってかな化するので要バランス。
+local EISU_DOUBLE_TAP_SEC = 0.5
 local eisuLastTapAt = nil
 
 local function isParallelsFrontmost()
