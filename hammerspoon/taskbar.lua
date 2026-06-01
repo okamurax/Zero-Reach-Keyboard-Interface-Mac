@@ -299,11 +299,14 @@ refresh = function()
         local screen = g.screen
         local full = screen:fullFrame()
         local vis = screen:frame()
-        -- vis の下端と full の下端の差(=Dock領域の高さ)を避けて、その上にバーを置く
+        -- full と vis の差から Dock 領域を避けてバーを置く。
+        -- 下端差(=下配置Dock)の上にバーを乗せ、左右の差(=左右配置Dock)分は
+        -- バーの x/幅を visibleFrame に合わせて重ならないようにする。
+        -- (下配置Dock時は vis.x==full.x / vis.w==full.w なので従来と同じ全幅)
         local dockBottom = (full.y + full.h) - (vis.y + vis.h)
-        local barX = full.x
+        local barX = vis.x
         local barY = full.y + full.h - dockBottom - BAR_H
-        local barW = full.w
+        local barW = vis.w
 
         local bar = bars[id]
         if not bar then
