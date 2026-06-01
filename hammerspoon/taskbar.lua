@@ -144,9 +144,7 @@ local function renderBar(bar, wins)
     local itemW = ITEM_W
     if n > 0 then
         local avail = bar.w - 2 * ITEM_PAD - (n - 1) * ITEM_GAP
-        itemW = math.floor(avail / n)
-        if itemW > ITEM_W then itemW = ITEM_W end
-        if itemW < MIN_ITEM_W then itemW = MIN_ITEM_W end
+        itemW = math.max(MIN_ITEM_W, math.min(ITEM_W, math.floor(avail / n)))
     end
 
     -- 表示対象だけ先に確定 (signature と描画ループで共有)
