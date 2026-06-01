@@ -37,6 +37,11 @@ local refreshDebounce
 local lastScreenSig = ""
 local refresh -- forward declaration
 
+-- 空き領域のダブルクリック判定用 (同じバー上で連続クリックされたか)
+-- macOS 標準のダブルクリック間隔(既定〜0.5秒)に合わせる
+local DBLCLICK_SEC = 0.5
+local lastEmptyClick = { id = nil, at = 0 }
+
 -- バースト発火するイベントを 200ms trailing debounce で1回に集約
 -- (Tahoe の Liquid Glass が windowTitleChanged を連射する対策)
 -- タイトル変化の体感反映 200ms 以内なら誤差。AX列挙コストを抑える。
@@ -130,6 +135,32 @@ local function groupWindowsByScreen()
         end
     end
     return map
+end
+
+-- 指定ディスプレイ上の (まだ最小化/hide していない) 全ウィンドウを最小化する。
+-- タスクバー単体クリックと同じ規約を使う = 最小化してもタスクバーに残る方:
+-- 通常は win:minimize()、Finder だけ app:hide() (minimize すると AX 列挙から落ちるため)。
+-- 注: Finder の app:hide() は全 Finder 窓に効くため、他ディスプレイの Finder 窓も隠れる
+--     (タスクバー単体クリックの既存挙動と同じ割り切り)。
+local function minimizeScreenWindows(screenId)
+    local finderHidden = false
+    for _, win in ipairs(hs.window.allWindows()) do
+        if isTaskable(win) then
+            local s = win:screen()
+            if s and s:id() == screenId then
+                local app = win:application()
+                local isHidden = app and app:isHidden()
+                if not win:isMinimized() and not isHidden then
+                    if app and app:bundleID() == "com.apple.finder" then
+                        if not finderHidden then app:hide(); finderHidden = true end
+                    else
+                        win:minimize()
+                    end
+                end
+            end
+        end
+    end
+    scheduleRefresh()
 end
 
 -- 1枚のバーを描画
@@ -354,6 +385,16 @@ refresh = function()
                             end
                             return
                         end
+                    end
+                    -- どのアイテムにも当たらなかった = 空き領域。
+                    -- 同じバー上で 0.4秒以内に2回目 → この画面の全ウィンドウを最小化。
+                    local now = hs.timer.secondsSinceEpoch()
+                    if lastEmptyClick.id == id and (now - lastEmptyClick.at) < DBLCLICK_SEC then
+                        lastEmptyClick.at = 0  -- 連続トリガ防止 (3クリック目で再発火しない)
+                        minimizeScreenWindows(id)
+                    else
+                        lastEmptyClick.id = id
+                        lastEmptyClick.at = now
                     end
                 end)
                 if not ok then hs.printf("[taskbar] click failed: %s", err) end
