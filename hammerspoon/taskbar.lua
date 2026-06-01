@@ -97,10 +97,6 @@ local function getAppIcon(bid)
     return img
 end
 
-local function screenIdOf(screen)
-    return screen:id()
-end
-
 -- ウィンドウがタスクバーに出すべきものか
 -- 最小化中もタスクバーに残す (クリックで復元するWin風挙動のため)
 -- Hammerspoon自身(canvas)は除外
@@ -126,7 +122,7 @@ local function groupWindowsByScreen()
         if isTaskable(win) then
             local s = win:screen()
             if s then
-                local id = screenIdOf(s)
+                local id = s:id()
                 map[id] = map[id] or { screen = s, wins = {} }
                 table.insert(map[id].wins, win)
             end
@@ -279,7 +275,7 @@ refresh = function()
     -- 全ディスプレイに対してバーを出す (ウィンドウが無くても空バーを表示)
     local liveScreens = {}
     for _, screen in ipairs(hs.screen.allScreens()) do
-        local id = screenIdOf(screen)
+        local id = screen:id()
         liveScreens[id] = true
         if not grouped[id] then
             grouped[id] = { screen = screen, wins = {} }
