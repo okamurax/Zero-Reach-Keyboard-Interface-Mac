@@ -5,7 +5,8 @@ hs.window.animationDuration = 0
 hs.urlevent.bind("reload", function() hs.reload() end)
 
 -- 画面下に貼り付くWin風タスクバー (ディスプレイ別)
-require("taskbar").start()
+local taskbar = require("taskbar")
+taskbar.start()
 
 -- 前面ウィンドウを取得。標準の AXWindow が無い場合 (Adobe Bridge等) は
 -- トップレベルの AXLayoutArea にフォールバック
@@ -168,3 +169,13 @@ mouseSwapWatchdog = hs.timer.doEvery(5, function()
         mouseSwapWatcher:start()
     end
 end)
+
+-- hammerspoon://reload (= hs.reload) や終了の前に OS リソースを握る
+-- eventtap / timer / watcher を明示停止する。Lua ステートは作り直されるが
+-- 旧インスタンスの GC が遅れると二重登録 (クリック二重変換・描画多重) を
+-- 招くため、shutdownCallback で確実に畳む。
+hs.shutdownCallback = function()
+    if mouseSwapWatchdog then mouseSwapWatchdog:stop(); mouseSwapWatchdog = nil end
+    if mouseSwapWatcher then mouseSwapWatcher:stop(); mouseSwapWatcher = nil end
+    taskbar.stop()
+end
