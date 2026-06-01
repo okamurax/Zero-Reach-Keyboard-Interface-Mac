@@ -12,7 +12,8 @@
 local M = {}
 
 local BAR_H        = 38
-local ITEM_W       = 210
+local ITEM_W       = 210   -- ボタン幅の最大値 (ウィンドウが少ないとき)
+local MIN_ITEM_W   = 60    -- ボタン幅の最小値 (圧縮の下限。アイコン+×が押せる幅)
 local ITEM_GAP     = 4
 local ITEM_PAD     = 6
 local CLOSE_W      = 21
@@ -140,11 +141,23 @@ local function renderBar(bar, wins)
     local focused = hs.window.focusedWindow()
     local focusedId = focused and focused:id() or nil
 
+    -- ウィンドウ数に応じてボタン幅を圧縮し、できるだけ全ウィンドウを収める
+    -- (Windowsタスクバー風)。幅は MIN_ITEM_W〜ITEM_W にクランプ。
+    -- MIN_ITEM_W でも収まらない数のときのみ溢れ、溢れた分はログに出す。
+    local n = #wins
+    local itemW = ITEM_W
+    if n > 0 then
+        local avail = bar.w - 2 * ITEM_PAD - (n - 1) * ITEM_GAP
+        itemW = math.floor(avail / n)
+        if itemW > ITEM_W then itemW = ITEM_W end
+        if itemW < MIN_ITEM_W then itemW = MIN_ITEM_W end
+    end
+
     -- 表示対象だけ先に確定 (signature と描画ループで共有)
     local visible = {}
     local x0 = ITEM_PAD
     for _, win in ipairs(wins) do
-        if x0 + ITEM_W > bar.w - ITEM_PAD then break end
+        if x0 + itemW > bar.w - ITEM_PAD then break end
         local app = win:application()
         local title = win:title() or ""
         if title == "" and app then title = app:name() end
@@ -159,8 +172,9 @@ local function renderBar(bar, wins)
             -- 取得失敗 (起動直後) は nil。後から取得できたら signature が変わり再描画される
             icon = app and getAppIcon(app:bundleID()) or nil,
         }
-        x0 = x0 + ITEM_W + ITEM_GAP
+        x0 = x0 + itemW + ITEM_GAP
     end
+    local dropped = n - #visible
 
     -- signature: barサイズ + 各item状態。前回と同じなら描画スキップ
     -- アイコン有無も含める (起動直後 nil→取得成功 への遷移で再描画させる)
@@ -173,6 +187,12 @@ local function renderBar(bar, wins)
     local sig = table.concat(sigParts, "|")
     if bar.lastSig == sig then return end
     bar.lastSig = sig
+
+    -- 圧縮しても溢れた分は無言で消さず、変化時のみログに残す (no-silent-cap)
+    if dropped > 0 and bar.lastDropped ~= dropped then
+        hs.printf("[taskbar] %d window(s) hidden: screen too narrow even at min width", dropped)
+    end
+    bar.lastDropped = dropped
 
     local canvas = bar.canvas
     canvas:replaceElements()
@@ -202,7 +222,7 @@ local function renderBar(bar, wins)
             action = "fill",
             fillColor = bgColor,
             roundedRectRadii = { xRadius = 4, yRadius = 4 },
-            frame = { x = x, y = 4, w = ITEM_W, h = BAR_H - 8 },
+            frame = { x = x, y = 4, w = itemW, h = BAR_H - 8 },
         }
 
         -- アイコン (visible 確定時に取得済み。signature と整合させ二重取得を避ける)
@@ -225,13 +245,13 @@ local function renderBar(bar, wins)
             frame = {
                 x = x + 4 + ICON_W + 4,
                 y = math.floor((BAR_H - FONT_SIZE) / 2 - 2),
-                w = ITEM_W - ICON_W - CLOSE_W - 12,
+                w = math.max(0, itemW - ICON_W - CLOSE_W - 12),
                 h = FONT_SIZE + 4,
             },
         }
 
         -- × ボタン
-        local closeX = x + ITEM_W - CLOSE_W - 2
+        local closeX = x + itemW - CLOSE_W - 2
         canvas[#canvas + 1] = {
             type = "text",
             text = "×",
@@ -244,11 +264,11 @@ local function renderBar(bar, wins)
 
         table.insert(bar.items, {
             win = win,
-            x1 = x, x2 = x + ITEM_W - CLOSE_W - 2,
+            x1 = x, x2 = x + itemW - CLOSE_W - 2,
             cx1 = closeX, cx2 = closeX + CLOSE_W,
         })
 
-        x = x + ITEM_W + ITEM_GAP
+        x = x + itemW + ITEM_GAP
     end
 end
 
