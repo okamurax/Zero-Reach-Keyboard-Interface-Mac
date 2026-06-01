@@ -141,11 +141,6 @@
                             {
                                 "conditions": [
                                     {
-                                        "name": "tab_tapped_once",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
                                         "bundle_identifiers": [
                                             "^com\\.parallels\\.desktop\\.console$",
                                             "^com\\.parallels\\.winapp\\."
@@ -153,72 +148,11 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "【2回目・Parallels】Ctrl+Cmd+5送出 (Windows IME ON)",
+                                "description": "英数(Parallels) = Ctrl+Cmd+4 (Win IME OFF) + tab_heldレイヤー。ダブルタップ→Ctrl+Cmd+5(IME ON)はHammerspoonが時刻ベースで検出",
                                 "from": {
                                     "key_code": "japanese_eisuu",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [
-                                    {
-                                        "set_variable": {
-                                            "name": "tab_tapped_once",
-                                            "value": 0
-                                        }
-                                    },
-                                    {
-                                        "key_code": "5",
-                                        "modifiers": ["left_control", "left_command"]
-                                    }
-                                ],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "tab_tapped_once",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_unless"
-                                    }
-                                ],
-                                "description": "【2回目】300ms以内に再度押されたらかなキーで上書き",
-                                "from": {
-                                    "key_code": "japanese_eisuu",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "set_variable": {
-                                            "name": "tab_tapped_once",
-                                            "value": 0
-                                        }
-                                    },
-                                    { "key_code": "japanese_kana" }
-                                ],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_if"
-                                    }
-                                ],
-                                "description": "【1回目・Parallels】Ctrl+Cmd+4送出 (Windows IME OFF)、ダブルタップ検出変数セット",
-                                "from": {
-                                    "key_code": "japanese_eisuu",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
                                 "to": [
                                     {
                                         "key_code": "4",
@@ -226,12 +160,6 @@
                                     },
                                     {
                                         "set_variable": {
-                                            "name": "tab_tapped_once",
-                                            "value": 1
-                                        }
-                                    },
-                                    {
-                                        "set_variable": {
                                             "name": "tab_held",
                                             "value": 1
                                         }
@@ -245,24 +173,6 @@
                                         }
                                     }
                                 ],
-                                "to_delayed_action": {
-                                    "to_if_canceled": [
-                                        {
-                                            "set_variable": {
-                                                "name": "tab_tapped_once",
-                                                "value": 0
-                                            }
-                                        }
-                                    ],
-                                    "to_if_invoked": [
-                                        {
-                                            "set_variable": {
-                                                "name": "tab_tapped_once",
-                                                "value": 0
-                                            }
-                                        }
-                                    ]
-                                },
                                 "type": "basic"
                             },
                             {
@@ -275,20 +185,13 @@
                                         "type": "frontmost_application_unless"
                                     }
                                 ],
-                                "description": "【1回目】即座に英数を送り、ダブルタップ検出用の変数をセット",
+                                "description": "英数 = japanese_eisuu + tab_heldレイヤー。ダブルタップ→かなはHammerspoonが時刻ベースで検出",
                                 "from": {
                                     "key_code": "japanese_eisuu",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
                                 "to": [
                                     { "key_code": "japanese_eisuu" },
-                                    {
-                                        "set_variable": {
-                                            "name": "tab_tapped_once",
-                                            "value": 1
-                                        }
-                                    },
                                     {
                                         "set_variable": {
                                             "name": "tab_held",
@@ -304,24 +207,6 @@
                                         }
                                     }
                                 ],
-                                "to_delayed_action": {
-                                    "to_if_canceled": [
-                                        {
-                                            "set_variable": {
-                                                "name": "tab_tapped_once",
-                                                "value": 0
-                                            }
-                                        }
-                                    ],
-                                    "to_if_invoked": [
-                                        {
-                                            "set_variable": {
-                                                "name": "tab_tapped_once",
-                                                "value": 0
-                                            }
-                                        }
-                                    ]
-                                },
                                 "type": "basic"
                             }
                         ]

@@ -175,6 +175,68 @@ mouseSwapWatchdog = hs.timer.doEvery(5, function()
     end
 end)
 
+-- 英数(japanese_eisuu) ダブルタップ → かな (Parallels前面時は Ctrl+Cmd+5 = Win IME ON)
+-- AHK と同様に「押下時刻」で判定するため、間に別キーが入っても時間内なら発火する。
+-- (Karabiner の to_delayed_action は介在キーでキャンセルされ、この挙動を素直に作れない)
+-- イベントは一切消費しない。2打目の 英数/Ctrl+Cmd+4 はそのまま流し、その直後に
+-- かな/Ctrl+Cmd+5 を追送する (= 英数→かな の順で確定。順序保証のため次サイクルで post)。
+-- 信号キー: Mac標準IME時は Karabiner が japanese_eisuu(102) を出力、Parallels時は
+-- Ctrl+Cmd+4(keycode 21 + ctrl+cmd) を出力するため、前面アプリで分岐する。
+local EISU_KEYCODE        = 102   -- kVK_JIS_Eisu
+local KANA_KEYCODE        = 104   -- kVK_JIS_Kana
+local KEY4_KEYCODE        = 21    -- kVK_ANSI_4 (Parallels時の Ctrl+Cmd+4)
+local EISU_DOUBLE_TAP_SEC = 0.3
+local eisuLastTapAt = nil
+
+local function isParallelsFrontmost()
+    local app = hs.application.frontmostApplication()
+    local b = app and app:bundleID()
+    if not b then return false end
+    return b == "com.parallels.desktop.console" or b:find("^com%.parallels%.winapp%.") ~= nil
+end
+
+eisuDoubleTapWatcher = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, function(event)
+    local ok, err = pcall(function()
+        -- オートリピート(押しっぱなし)は連打と誤検出しないよう無視
+        if event:getProperty(hs.eventtap.event.properties.keyboardEventAutorepeat) ~= 0 then return end
+
+        local parallels = isParallelsFrontmost()
+        local kc = event:getKeyCode()
+        local isSignal
+        if parallels then
+            local f = event:getFlags()
+            isSignal = (kc == KEY4_KEYCODE and f.ctrl and f.cmd)
+        else
+            isSignal = (kc == EISU_KEYCODE)
+        end
+        if not isSignal then return end
+
+        local now = hs.timer.secondsSinceEpoch()
+        if eisuLastTapAt and (now - eisuLastTapAt) < EISU_DOUBLE_TAP_SEC then
+            eisuLastTapAt = nil  -- 連続発火を防ぐ (3打目はまた1打目扱い)
+            -- 元の2打目を流し切ってから追送するため、次のイベントループで post
+            hs.timer.doAfter(0, function()
+                if parallels then
+                    hs.eventtap.keyStroke({ "ctrl", "cmd" }, "5")
+                else
+                    hs.eventtap.event.newKeyEvent(KANA_KEYCODE, true):post()
+                    hs.eventtap.event.newKeyEvent(KANA_KEYCODE, false):post()
+                end
+            end)
+        else
+            eisuLastTapAt = now
+        end
+    end)
+    if not ok then hs.printf("[eisuDoubleTap] callback failed: %s", tostring(err)) end
+    return false  -- 常に素通し (イベントを消費しない)
+end):start()
+
+eisuDoubleTapWatchdog = hs.timer.doEvery(5, function()
+    if eisuDoubleTapWatcher and not eisuDoubleTapWatcher:isEnabled() then
+        eisuDoubleTapWatcher:start()
+    end
+end)
+
 -- hammerspoon://reload (= hs.reload) や終了の前に OS リソースを握る
 -- eventtap / timer / watcher を明示停止する。Lua ステートは作り直されるが
 -- 旧インスタンスの GC が遅れると二重登録 (クリック二重変換・描画多重) を
@@ -182,5 +244,7 @@ end)
 hs.shutdownCallback = function()
     if mouseSwapWatchdog then mouseSwapWatchdog:stop(); mouseSwapWatchdog = nil end
     if mouseSwapWatcher then mouseSwapWatcher:stop(); mouseSwapWatcher = nil end
+    if eisuDoubleTapWatchdog then eisuDoubleTapWatchdog:stop(); eisuDoubleTapWatchdog = nil end
+    if eisuDoubleTapWatcher then eisuDoubleTapWatcher:stop(); eisuDoubleTapWatcher = nil end
     taskbar.stop()
 end
