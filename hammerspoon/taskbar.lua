@@ -133,10 +133,8 @@ end
 
 -- 1枚のバーを描画
 -- 表示状態が前回と完全一致なら canvas を触らずに早期return (差分render)。
-local function renderBar(bar, wins)
-    local focused = hs.window.focusedWindow()
-    local focusedId = focused and focused:id() or nil
-
+-- focusedId は全ディスプレイ共通なので呼び出し側 (refresh) で1回だけ取得して渡す。
+local function renderBar(bar, wins, focusedId)
     -- ウィンドウ数に応じてボタン幅を圧縮し、できるだけ全ウィンドウを収める
     -- (Windowsタスクバー風)。幅は MIN_ITEM_W〜ITEM_W にクランプ。
     -- MIN_ITEM_W でも収まらない数のときのみ溢れ、溢れた分はログに出す。
@@ -270,6 +268,10 @@ end
 refresh = function()
     local grouped = groupWindowsByScreen()
 
+    -- フォーカスウィンドウは全ディスプレイ共通。ここで1回だけ取得して renderBar へ渡す
+    local focused = hs.window.focusedWindow()
+    local focusedId = focused and focused:id() or nil
+
     -- 全ディスプレイに対してバーを出す (ウィンドウが無くても空バーを表示)
     local liveScreens = {}
     for _, screen in ipairs(hs.screen.allScreens()) do
@@ -365,7 +367,7 @@ refresh = function()
             bar.w = barW
         end
 
-        renderBar(bar, g.wins)
+        renderBar(bar, g.wins, focusedId)
     end
 end
 
