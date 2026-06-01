@@ -120,32 +120,51 @@ end)
 
 -- Chrome: マウスセンターボタン⇔右クリック入れ替え
 -- （トラックパッド対応のため Karabiner ではなく Hammerspoon で処理）
+-- コールバックは pcall で保護する。getProperty 等で例外が出てもタップを
+-- 巻き込んで殺さないようにし、恒久的な機能停止を防ぐ。
 mouseSwapWatcher = hs.eventtap.new({
     hs.eventtap.event.types.otherMouseDown,
     hs.eventtap.event.types.otherMouseUp,
     hs.eventtap.event.types.rightMouseDown,
     hs.eventtap.event.types.rightMouseUp,
 }, function(event)
-    local app = hs.application.frontmostApplication()
-    if not app or app:bundleID() ~= "com.google.Chrome" then
+    local ok, handled, replacement = pcall(function()
+        local app = hs.application.frontmostApplication()
+        if not app or app:bundleID() ~= "com.google.Chrome" then
+            return false
+        end
+
+        local eventType = event:getType()
+
+        if eventType == hs.eventtap.event.types.otherMouseDown and event:getProperty(hs.eventtap.event.properties.mouseEventButtonNumber) == 2 then
+            return true, { hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.rightMouseDown, event:location()) }
+        elseif eventType == hs.eventtap.event.types.otherMouseUp and event:getProperty(hs.eventtap.event.properties.mouseEventButtonNumber) == 2 then
+            return true, { hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.rightMouseUp, event:location()) }
+        elseif eventType == hs.eventtap.event.types.rightMouseDown then
+            local e = hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.otherMouseDown, event:location())
+            e:setProperty(hs.eventtap.event.properties.mouseEventButtonNumber, 2)
+            return true, { e }
+        elseif eventType == hs.eventtap.event.types.rightMouseUp then
+            local e = hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.otherMouseUp, event:location())
+            e:setProperty(hs.eventtap.event.properties.mouseEventButtonNumber, 2)
+            return true, { e }
+        end
+
+        return false
+    end)
+
+    if not ok then
+        hs.printf("[mouseSwap] callback failed: %s", tostring(handled))
         return false
     end
-
-    local eventType = event:getType()
-
-    if eventType == hs.eventtap.event.types.otherMouseDown and event:getProperty(hs.eventtap.event.properties.mouseEventButtonNumber) == 2 then
-        return true, { hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.rightMouseDown, event:location()) }
-    elseif eventType == hs.eventtap.event.types.otherMouseUp and event:getProperty(hs.eventtap.event.properties.mouseEventButtonNumber) == 2 then
-        return true, { hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.rightMouseUp, event:location()) }
-    elseif eventType == hs.eventtap.event.types.rightMouseDown then
-        local e = hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.otherMouseDown, event:location())
-        e:setProperty(hs.eventtap.event.properties.mouseEventButtonNumber, 2)
-        return true, { e }
-    elseif eventType == hs.eventtap.event.types.rightMouseUp then
-        local e = hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.otherMouseUp, event:location())
-        e:setProperty(hs.eventtap.event.properties.mouseEventButtonNumber, 2)
-        return true, { e }
-    end
-
+    if handled then return true, replacement end
     return false
 end):start()
+
+-- macOS はコールバックが重い/タイムアウトするとタップを自動無効化する。
+-- 定期的に生存確認し、無効化されていたら再有効化して機能を自動復旧する。
+mouseSwapWatchdog = hs.timer.doEvery(5, function()
+    if mouseSwapWatcher and not mouseSwapWatcher:isEnabled() then
+        mouseSwapWatcher:start()
+    end
+end)
