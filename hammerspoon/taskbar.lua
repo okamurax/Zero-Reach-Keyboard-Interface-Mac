@@ -300,12 +300,17 @@ refresh = function()
                     for _, item in ipairs(b.items) do
                         if x >= item.cx1 and x <= item.cx2 then
                             if item.win then item.win:close() end
+                            -- windowDestroyed を待たず即再描画し、古い行への連打誤操作を防ぐ
+                            scheduleRefresh()
                             return
                         elseif x >= item.x1 and x <= item.x2 then
                             local win = item.win
                             if not win then return end
                             local app = win:application()
-                            local isHidden = app and app:isHidden()
+                            -- 前回 render 以降に閉じられたウィンドウ: 無言で失敗させず
+                            -- バーを更新して古い行を消す
+                            if not app then scheduleRefresh(); return end
+                            local isHidden = app:isHidden()
                             if win:isMinimized() or isHidden then
                                 -- 最小化 or hide 中: 復元 + フォーカス
                                 if isHidden then app:unhide() end
@@ -316,7 +321,7 @@ refresh = function()
                                 local focused = hs.window.focusedWindow()
                                 if focused and focused:id() == win:id() then
                                     -- アクティブ中: Finder は hide、他は minimize
-                                    if app and app:bundleID() == "com.apple.finder" then
+                                    if app:bundleID() == "com.apple.finder" then
                                         app:hide()
                                     else
                                         win:minimize()
