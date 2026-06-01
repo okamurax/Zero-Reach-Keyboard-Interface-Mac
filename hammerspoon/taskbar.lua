@@ -81,16 +81,19 @@ local function currentScreenSig()
     return table.concat(ids, ",")
 end
 
--- bundleID -> hs.image (false = 取得失敗をキャッシュして再試行を抑制)
+-- bundleID -> hs.image。成功時のみキャッシュする。
+-- 取得失敗(アプリ起動直後でアイコン未準備のとき等)はキャッシュせず、
+-- 次回 render で再試行する。失敗を永続キャッシュするとアイコンが
+-- 二度と出なくなるため。signature にアイコン有無を含めることで、
+-- 後からアイコンが取得できた時点で再描画される (renderBar 参照)。
 local iconCache = {}
 local function getAppIcon(bid)
     if not bid or bid == "" then return nil end
     local cached = iconCache[bid]
-    if cached == nil then
-        cached = hs.image.imageFromAppBundle(bid) or false
-        iconCache[bid] = cached
-    end
-    return cached or nil
+    if cached then return cached end
+    local img = hs.image.imageFromAppBundle(bid)
+    if img then iconCache[bid] = img end
+    return img
 end
 
 local function screenIdOf(screen)
@@ -153,15 +156,19 @@ local function renderBar(bar, wins)
             isMin = win:isMinimized() or (app and app:isHidden()) or false,
             isActive = (win:id() == focusedId),
             app = app,
+            -- 取得失敗 (起動直後) は nil。後から取得できたら signature が変わり再描画される
+            icon = app and getAppIcon(app:bundleID()) or nil,
         }
         x0 = x0 + ITEM_W + ITEM_GAP
     end
 
     -- signature: barサイズ + 各item状態。前回と同じなら描画スキップ
+    -- アイコン有無も含める (起動直後 nil→取得成功 への遷移で再描画させる)
     local sigParts = { bar.w }
     for _, v in ipairs(visible) do
         sigParts[#sigParts + 1] = v.id .. ":" .. v.title .. ":" ..
-            (v.isMin and "m" or "_") .. (v.isActive and "a" or "_")
+            (v.isMin and "m" or "_") .. (v.isActive and "a" or "_") ..
+            (v.icon and "i" or "_")
     end
     local sig = table.concat(sigParts, "|")
     if bar.lastSig == sig then return end
@@ -182,7 +189,7 @@ local function renderBar(bar, wins)
 
     local x = ITEM_PAD
     for _, v in ipairs(visible) do
-        local win, isActive, isMin, app, title = v.win, v.isActive, v.isMin, v.app, v.title
+        local win, isActive, isMin, title = v.win, v.isActive, v.isMin, v.title
 
         local bgColor
         if isMin then bgColor = ITEM_BG_MIN
@@ -198,16 +205,13 @@ local function renderBar(bar, wins)
             frame = { x = x, y = 4, w = ITEM_W, h = BAR_H - 8 },
         }
 
-        -- アイコン
-        if app then
-            local icon = getAppIcon(app:bundleID())
-            if icon then
-                canvas[#canvas + 1] = {
-                    type = "image",
-                    image = icon,
-                    frame = { x = x + 4, y = (BAR_H - ICON_W) / 2, w = ICON_W, h = ICON_W },
-                }
-            end
+        -- アイコン (visible 確定時に取得済み。signature と整合させ二重取得を避ける)
+        if v.icon then
+            canvas[#canvas + 1] = {
+                type = "image",
+                image = v.icon,
+                frame = { x = x + 4, y = (BAR_H - ICON_W) / 2, w = ICON_W, h = ICON_W },
+            }
         end
 
         -- タイトル
