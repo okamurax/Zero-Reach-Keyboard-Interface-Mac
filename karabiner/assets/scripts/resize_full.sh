@@ -1,4 +1,7 @@
 #!/bin/bash
+# [DEPRECATED / 未使用] karabiner のどのキーからも呼ばれていない旧実装。
+# 全画面リサイズの正準実装は Hammerspoon `hammerspoon://movetodisplay` (init.lua)。
+# taskbarH=48 ハードコードは現行の自作タスクバー高さ(38px)と不一致。参考用に残置。
 osascript <<'APPLESCRIPT'
 use framework "AppKit"
 

@@ -1,4 +1,14 @@
 #!/bin/bash
+# ============================================================================
+# [DEPRECATED / 未使用] このスクリプトは現在 karabiner のどのキーからも
+# 呼ばれていない。ウィンドウ移動+最大化の正準実装は Hammerspoon の
+# `hammerspoon://movetodisplay?idx=N&dockw=N&taskbar=N` (hammerspoon/init.lua)。
+# 参考用に残置。外部から手動起動する場合は下記の既知の制約に注意:
+#   - 座標変換 (topY = totalH - vy - vh) が mainScreen の高さ totalH を基準に
+#     しているため、main より縦に大きい/上方向にずれた副ディスプレイでは
+#     Y 位置がずれる。Hammerspoon 版は fullFrame ベースでこの問題が無い。
+#   - dock_right 時の dockW 推定は右Dockが無い構成では 0 付近〜負になり得る。
+# ============================================================================
 # Usage: move_to_display.sh <screen_index> [dock_right] [taskbar_bottom_px]
 # screen_index:       0-based, screens sorted left-to-right by x-coordinate
 # dock_right:         if "dock_right", subtract Dock width from the right side (else "" / "none")

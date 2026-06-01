@@ -1,4 +1,7 @@
 #!/bin/bash
+# [DEPRECATED / 未使用] karabiner のどのキーからも呼ばれていない旧実装。
+# 適度リサイズの正準実装は Hammerspoon `hammerspoon://resizemoderate` (init.lua)で
+# 1200x750 固定。本スクリプトは visibleFrame の75%・4:3 と別ロジックなので注意。
 osascript <<'APPLESCRIPT'
 use framework "AppKit"
 
