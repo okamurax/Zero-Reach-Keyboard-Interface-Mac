@@ -5,7 +5,8 @@
 -- 設計メモ:
 --   * hs.canvas をディスプレイごとに1枚ずつ作る
 --   * hs.window.filter のサブスクリプションで再描画
---   * 全イベントは scheduleRefresh で 50ms にまとめて主スレッド負荷を抑える
+--   * 全イベントは scheduleRefresh で 200ms にまとめて主スレッド負荷を抑える
+--     (連射継続時も最長1秒で必ずflushするmax-wait付きdebounce)
 --   * 8秒間隔のフォールバック refresh は filter が取りこぼす Adobe/Parallels 対策
 
 local M = {}
@@ -37,10 +38,27 @@ local refresh -- forward declaration
 -- バースト発火するイベントを 200ms trailing debounce で1回に集約
 -- (Tahoe の Liquid Glass が windowTitleChanged を連射する対策)
 -- タイトル変化の体感反映 200ms 以内なら誤差。AX列挙コストを抑える。
+--
+-- ただし純 trailing だと 200ms 未満間隔でイベントが来続ける限り
+-- コールバックが一度も走らない starvation に陥る (Liquid Glass のタイトル
+-- 連射が継続するケース)。MAX_WAIT の締切を設け、バースト開始から最長
+-- MAX_WAIT 秒で必ず1回 flush する (leading でなく max-wait 付き trailing)。
+local DEBOUNCE_DELAY = 0.2
+local MAX_WAIT       = 1.0
+local refreshDeadline
 local function scheduleRefresh()
-    if refreshDebounce then refreshDebounce:stop() end
-    refreshDebounce = hs.timer.doAfter(0.2, function()
+    local now = hs.timer.secondsSinceEpoch()
+    if refreshDebounce then
+        refreshDebounce:stop()
+    else
+        -- 新しいバーストの開始: 最大待ち時間の締切を設定
+        refreshDeadline = now + MAX_WAIT
+    end
+    -- trailing は now+DEBOUNCE_DELAY だが、締切を超えない範囲に丸める
+    local delay = math.min(DEBOUNCE_DELAY, math.max(0, refreshDeadline - now))
+    refreshDebounce = hs.timer.doAfter(delay, function()
         refreshDebounce = nil
+        refreshDeadline = nil
         refresh()
     end)
 end
