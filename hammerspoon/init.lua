@@ -43,14 +43,17 @@ local function setTargetSize(target, kind, w, h)
     end
 end
 
--- x座標で左から右にソートしたディスプレイを返す
+-- x座標で左から右にソートした N番目 (0始まり) のディスプレイを返す。
+-- idx がディスプレイ数を超える場合は最右にクランプする。これは意図的で、
+-- F13+2 (="右", idx=2/3画面想定) を常に最右に着地させるため。
+-- ただしディスプレイ2枚以下では "中央" (idx=1) も最右に丸められる点に注意。
 local function screenAtIndex(idx)
     local screens = hs.screen.allScreens()
+    if #screens == 0 then return nil end
     table.sort(screens, function(a, b)
         return a:fullFrame().x < b:fullFrame().x
     end)
-    if idx >= #screens then idx = #screens - 1 end
-    if idx < 0 then idx = 0 end
+    idx = math.max(0, math.min(idx, #screens - 1))
     return screens[idx + 1]
 end
 
