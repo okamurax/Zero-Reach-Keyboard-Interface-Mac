@@ -387,11 +387,14 @@ refresh = function()
                         end
                     end
                     -- どのアイテムにも当たらなかった = 空き領域。
-                    -- 同じバー上で 0.4秒以内に2回目 → この画面の全ウィンドウを最小化。
+                    -- 同じバー上で DBLCLICK_SEC 以内に2回目 → Mission Control をトグル。
+                    -- キー送出(Ctrl+↑)は単一CGEventSource死の影響を受けるため使わず、
+                    -- hs.spaces のAPI(キー送出なし)で開閉する。Mission Controlは全画面が対象
+                    -- (最小化のような画面単位ではない)。
                     local now = hs.timer.secondsSinceEpoch()
                     if lastEmptyClick.id == id and (now - lastEmptyClick.at) < DBLCLICK_SEC then
                         lastEmptyClick.at = 0  -- 連続トリガ防止 (3クリック目で再発火しない)
-                        minimizeScreenWindows(id)
+                        hs.spaces.toggleMissionControl()
                     else
                         lastEmptyClick.id = id
                         lastEmptyClick.at = now
