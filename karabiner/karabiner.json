@@ -1079,6 +1079,26 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    }
+                                ],
+                                "description": "F13+R = Mission Control",
+                                "from": {
+                                    "key_code": "r",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "mission_control"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
                                     },
                                     {
                                         "bundle_identifiers": [
