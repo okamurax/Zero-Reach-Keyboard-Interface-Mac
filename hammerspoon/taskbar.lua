@@ -137,32 +137,6 @@ local function groupWindowsByScreen()
     return map
 end
 
--- 指定ディスプレイ上の (まだ最小化/hide していない) 全ウィンドウを最小化する。
--- タスクバー単体クリックと同じ規約を使う = 最小化してもタスクバーに残る方:
--- 通常は win:minimize()、Finder だけ app:hide() (minimize すると AX 列挙から落ちるため)。
--- 注: Finder の app:hide() は全 Finder 窓に効くため、他ディスプレイの Finder 窓も隠れる
---     (タスクバー単体クリックの既存挙動と同じ割り切り)。
-local function minimizeScreenWindows(screenId)
-    local finderHidden = false
-    for _, win in ipairs(hs.window.allWindows()) do
-        if isTaskable(win) then
-            local s = win:screen()
-            if s and s:id() == screenId then
-                local app = win:application()
-                local isHidden = app and app:isHidden()
-                if not win:isMinimized() and not isHidden then
-                    if app and app:bundleID() == "com.apple.finder" then
-                        if not finderHidden then app:hide(); finderHidden = true end
-                    else
-                        win:minimize()
-                    end
-                end
-            end
-        end
-    end
-    scheduleRefresh()
-end
-
 -- 1枚のバーを描画
 -- 表示状態が前回と完全一致なら canvas を触らずに早期return (差分render)。
 -- focusedId は全ディスプレイ共通なので呼び出し側 (refresh) で1回だけ取得して渡す。
