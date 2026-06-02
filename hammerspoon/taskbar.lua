@@ -12,6 +12,12 @@
 local M = {}
 
 local BAR_H        = 38
+-- hs.canvas のウィンドウは「リサイズ可能」扱いで、上下端にカーソルが乗ると縦リサイズ
+-- カーソル(↕)が出る (canvas にリサイズ無効化APIが無い)。ウィンドウを上下に CURSOR_PAD
+-- だけ広げ、リサイズ縁を可視バーの外 (上=透明帯/下=画面外) へ逃がす。中身は
+-- transformation で同量下げるので見た目の位置は不変。
+-- matrix API が無い環境では 0 にして従来動作にフォールバック (タスクバーを壊さない)。
+local CURSOR_PAD   = (hs.canvas.matrix and hs.canvas.matrix.translate) and 8 or 0
 local ITEM_W       = 210   -- ボタン幅の最大値 (ウィンドウが少ないとき)
 local MIN_ITEM_W   = 60    -- ボタン幅の最小値 (圧縮の下限。アイコン+×が押せる幅)
 local ITEM_GAP     = 4
@@ -22,7 +28,6 @@ local FONT_SIZE    = 13
 local FONT_NAME    = ".AppleSystemUIFont"
 local BG_COLOR     = { red = 0.10, green = 0.10, blue = 0.10, alpha = 0.92 }
 local ITEM_BG      = { red = 0.20, green = 0.20, blue = 0.20, alpha = 1.0 }
-local ITEM_BG_ACT  = { red = 0.30, green = 0.45, blue = 0.75, alpha = 1.0 }
 local ITEM_BG_MIN  = { red = 0.14, green = 0.14, blue = 0.14, alpha = 1.0 }
 local TEXT_COLOR   = { white = 0.95 }
 local TEXT_MIN     = { white = 0.55 }
@@ -134,13 +139,17 @@ local function groupWindowsByScreen()
             end
         end
     end
+    -- allWindows() は z-order (最近フォーカスが先頭) を返すため、フォーカスのたびに
+    -- 並びが変わりアクティブ窓が左へ飛ぶ。ウィンドウID (生成順で安定) で固定する。
+    for _, g in pairs(map) do
+        table.sort(g.wins, function(a, b) return a:id() < b:id() end)
+    end
     return map
 end
 
 -- 1枚のバーを描画
 -- 表示状態が前回と完全一致なら canvas を触らずに早期return (差分render)。
--- focusedId は全ディスプレイ共通なので呼び出し側 (refresh) で1回だけ取得して渡す。
-local function renderBar(bar, wins, focusedId)
+local function renderBar(bar, wins)
     -- ウィンドウ数に応じてボタン幅を圧縮し、できるだけ全ウィンドウを収める
     -- (Windowsタスクバー風)。幅は MIN_ITEM_W〜ITEM_W にクランプ。
     -- MIN_ITEM_W でも収まらない数のときのみ溢れ、溢れた分はログに出す。
@@ -165,7 +174,6 @@ local function renderBar(bar, wins, focusedId)
             title = title,
             -- Finder の app:hide() もグレーアウト扱い (個別 minimize は出来ないため)
             isMin = win:isMinimized() or (app and app:isHidden()) or false,
-            isActive = (win:id() == focusedId),
             app = app,
             -- 取得失敗 (起動直後) は nil。後から取得できたら signature が変わり再描画される
             icon = app and getAppIcon(app:bundleID()) or nil,
@@ -179,8 +187,7 @@ local function renderBar(bar, wins, focusedId)
     local sigParts = { bar.w }
     for _, v in ipairs(visible) do
         sigParts[#sigParts + 1] = v.id .. ":" .. v.title .. ":" ..
-            (v.isMin and "m" or "_") .. (v.isActive and "a" or "_") ..
-            (v.icon and "i" or "_")
+            (v.isMin and "m" or "_") .. (v.icon and "i" or "_")
     end
     local sig = table.concat(sigParts, "|")
     if bar.lastSig == sig then return end
@@ -207,12 +214,9 @@ local function renderBar(bar, wins, focusedId)
 
     local x = ITEM_PAD
     for _, v in ipairs(visible) do
-        local win, isActive, isMin, title = v.win, v.isActive, v.isMin, v.title
+        local win, isMin, title = v.win, v.isMin, v.title
 
-        local bgColor
-        if isMin then bgColor = ITEM_BG_MIN
-        elseif isActive then bgColor = ITEM_BG_ACT
-        else bgColor = ITEM_BG end
+        local bgColor = isMin and ITEM_BG_MIN or ITEM_BG
 
         -- アイテム背景
         canvas[#canvas + 1] = {
@@ -274,10 +278,6 @@ end
 refresh = function()
     local grouped = groupWindowsByScreen()
 
-    -- フォーカスウィンドウは全ディスプレイ共通。ここで1回だけ取得して renderBar へ渡す
-    local focused = hs.window.focusedWindow()
-    local focusedId = focused and focused:id() or nil
-
     -- 全ディスプレイに対してバーを出す (ウィンドウが無くても空バーを表示)
     local liveScreens = {}
     for _, screen in ipairs(hs.screen.allScreens()) do
@@ -312,10 +312,14 @@ refresh = function()
 
         local bar = bars[id]
         if not bar then
-            local canvas = hs.canvas.new({ x = barX, y = barY, w = barW, h = BAR_H })
+            local canvas = hs.canvas.new({ x = barX, y = barY - CURSOR_PAD, w = barW, h = BAR_H + CURSOR_PAD * 2 })
             canvas:level(hs.canvas.windowLevels.dock - 1)
             canvas:behavior({ "canJoinAllSpaces", "stationary" })
             canvas:clickActivating(false)
+            -- 中身を CURSOR_PAD 下げ、広げたウィンドウ内で元の位置に描く (リサイズ縁逃がし)
+            if CURSOR_PAD > 0 then
+                canvas:transformation(hs.canvas.matrix.translate(0, CURSOR_PAD))
+            end
             canvas:mouseCallback(function(_, msg, _, x, y)
                 if msg ~= "mouseDown" then return end
                 -- ターゲットアプリ終了直後の AX 例外などで callback 全体が死ぬのを防ぐ
@@ -336,27 +340,13 @@ refresh = function()
                             -- バーを更新して古い行を消す
                             if not app then scheduleRefresh(); return end
                             local isHidden = app:isHidden()
-                            if win:isMinimized() or isHidden then
-                                -- 最小化 or hide 中: 復元 + フォーカス
-                                if isHidden then app:unhide() end
-                                if win:isMinimized() then win:unminimize() end
-                                win:focus()
-                                win:raise()
-                            else
-                                local focused = hs.window.focusedWindow()
-                                if focused and focused:id() == win:id() then
-                                    -- アクティブ中: Finder は hide、他は minimize
-                                    if app:bundleID() == "com.apple.finder" then
-                                        app:hide()
-                                    else
-                                        win:minimize()
-                                    end
-                                else
-                                    -- 非アクティブ: 前面に
-                                    win:focus()
-                                    win:raise()
-                                end
-                            end
+                            -- トグル廃止: 常に「最前面 + フォーカス」だけにする。
+                            -- (最小化するとタスクバーから消えるアプリが多く、最小化での
+                            --  管理が現実的でないため。最小化/hide 中ならまず復元する)
+                            if isHidden then app:unhide() end
+                            if win:isMinimized() then win:unminimize() end
+                            win:focus()
+                            win:raise()
                             return
                         end
                     end
@@ -382,11 +372,11 @@ refresh = function()
             bars[id] = bar
         else
             -- ディスプレイ解像度・位置が変わった場合に追従
-            bar.canvas:frame({ x = barX, y = barY, w = barW, h = BAR_H })
+            bar.canvas:frame({ x = barX, y = barY - CURSOR_PAD, w = barW, h = BAR_H + CURSOR_PAD * 2 })
             bar.w = barW
         end
 
-        renderBar(bar, g.wins, focusedId)
+        renderBar(bar, g.wins)
     end
 end
 
