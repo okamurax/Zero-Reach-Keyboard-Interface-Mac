@@ -185,12 +185,42 @@ end)
 local EISU_KEYCODE        = 102   -- kVK_JIS_Eisu
 local KANA_KEYCODE        = 104   -- kVK_JIS_Kana
 local KEY4_KEYCODE        = 21    -- kVK_ANSI_4 (Parallels時の Ctrl+Cmd+4)
+-- Mac側のかな確定先 (Google日本語入力)。TISで直接切替するための入力ソースID。
+-- 取得元: かな入力中に Hammerspoon Console で hs.keycodes.currentSourceID() を実行した値。
+-- IME を変えたら要更新 (例: ことえりなら com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese)。
+local MAC_KANA_SOURCE_ID  = "com.google.inputmethod.Japanese.base"
 -- 0.5秒。純粋な連打だけなら0.3で足りるが、間に1打(Backspace等)挟むと
 -- その分の時間が乗るため、介在キーを許容できるよう少し広げてある。
 -- 広げすぎると「英数→素早く数文字→英数」が誤ってかな化するので要バランス。
 local EISU_DOUBLE_TAP_SEC = 0.5
 local eisuLastTapAt = nil
 
+-- IME切替キーは「別プロセス System Events」に送らせる。
+-- 理由: Hammerspoon プロセス自身の合成キー送出 (CGEventPost / :post() / keyStroke) は、
+-- Parallels の winapp.* 大量 churn や RDP 多用の下で静かに毒され、無音で効かなくなる
+-- (eventtap も timer も検出も生きているのに :post() だけ no-op 化。HS を作り直すまで
+-- 復活しない)。これはシステム全体や Secure Input の問題ではなく HS プロセス固有で、
+-- 別プロセスからの送出は健全なことを実機で確認済み。よって実際の post は System Events
+-- (別プロセス) に肩代わりさせ、毒を確実に迂回する。
+-- 送り方は hs.osascript で HS 内から Apple Event を投げる方式。osascript バイナリを
+-- 毎回起動する版 (~25ms) と違い、プロセス起動コストが無く Apple Event 往復で済む。
+-- 同期実行で runloop を数ms塞ぐが、呼び出しは doAfter 経由でダブルタップ時のみ。
+-- System Events がコールドだと初回が重いので下の prewarm で常駐させておく。
+local function sendImeKey(applescript)
+    hs.osascript.applescript(applescript)
+end
+
+-- System Events を起動時に常駐させ quit delay 0 で自動終了を抑止する
+-- (sendImeKey をコールド起動遅延なしの Apple Event 往復だけにするため)。
+-- prewarm 自体は起動を塞がないよう非同期 (hs.task) で投げる。
+hs.task.new("/usr/bin/osascript", nil,
+    { "-e", 'tell application "System Events" to set quit delay to 0' }):start()
+
+-- Parallels が前面かを「キー押下のたびにライブで」判定する。
+-- 注: 以前 activated イベント駆動のキャッシュにしたが、フルスクリーン/Spaces 切替では
+-- activated が飛ばずキャッシュが stale になり、Karabiner 側の分岐 (Parallels時=Ctrl+Cmd+4 /
+-- Mac時=英数102) と食い違って検出ゼロになった。両者を確実に同期させるためライブ判定に戻す。
+-- (間欠故障の真因は前面判定ではなく合成キー送出の毒だったので、キャッシュ化は不要だった)
 local function isParallelsFrontmost()
     local app = hs.application.frontmostApplication()
     local b = app and app:bundleID()
@@ -217,13 +247,24 @@ eisuDoubleTapWatcher = hs.eventtap.new({ hs.eventtap.event.types.keyDown }, func
         local now = hs.timer.secondsSinceEpoch()
         if eisuLastTapAt and (now - eisuLastTapAt) < EISU_DOUBLE_TAP_SEC then
             eisuLastTapAt = nil  -- 連続発火を防ぐ (3打目はまた1打目扱い)
-            -- 元の2打目を流し切ってから追送するため、次のイベントループで post
+            hs.printf("[eisuDoubleTap] fire parallels=%s", tostring(parallels))
+            -- 別プロセス経由で送出 (sendImeKey の理由は上のコメント参照)。
+            -- Parallels: Ctrl+Cmd+5 (Win IME ON) / Mac: かな(keycode 104)。
+            -- 2打目 (Parallels時は Karabiner が出す Ctrl+Cmd+4=IME OFF) を完全に流し切って
+            -- から追送しないと、ゲスト IME に OFF→ON が競合して入り一瞬入力が固まる。
+            -- 次イベントループへ遅延 (doAfter 0) して順序を保証する。
             hs.timer.doAfter(0, function()
                 if parallels then
-                    hs.eventtap.keyStroke({ "ctrl", "cmd" }, "5")
+                    -- ゲストには Ctrl+Cmd+5 を送るしかない。System Events 経由 (snag は許容)。
+                    sendImeKey('tell application "System Events" to key code 23 using {control down, command down}')
                 else
-                    hs.eventtap.event.newKeyEvent(KANA_KEYCODE, true):post()
-                    hs.eventtap.event.newKeyEvent(KANA_KEYCODE, false):post()
+                    -- Mac側はキーを送らず TIS で入力ソースを直接かなへ切替。
+                    -- TIS は CGEventSource を使わない別経路なので合成キー送出の単一ソース死
+                    -- (sendImeKey のコメント参照) と無縁で即時、snag も出ない。
+                    -- 万一切替に失敗したら従来のキー送出にフォールバック。
+                    if not hs.keycodes.currentSourceID(MAC_KANA_SOURCE_ID) then
+                        sendImeKey('tell application "System Events" to key code ' .. KANA_KEYCODE)
+                    end
                 end
             end)
         else
