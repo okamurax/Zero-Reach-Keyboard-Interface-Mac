@@ -25,22 +25,29 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | ウィンドウ操作 | AHK 直接 | Hammerspoon URL handler 経由 |
 | タスクバー | Windows標準 / uBar | Hammerspoon 自作 (`taskbar.lua`) |
 | Parallels内 Windowsアプリ操作 | (該当なし) | VM内に AHK companion 常駐、Karabiner→Hammerspoon→AHK で操作トンネリング |
-| IME 切替 | 無変換 単押し → IME OFF | 英数 単押し → 英数 / ダブルタップ → かな (Parallels時は Win-IME ON/OFF に分岐) |
+| IME 切替 | 無変換 単押し → IME OFF | 英数 単押し → 英数 / 英数+F13 → かな (Parallels時は Win-IME ON/OFF に分岐) |
 | Cmd/Ctrl の関係 | (Win単独) | macOS 標準動作 ⇔ Parallels前面時は左Cmdを左Ctrl化する分岐 |
 
 ## 機能
 
 ### レイヤー
-- **英数(Tab)レイヤー** — Tab を保持しながら他キー押下で発火。単押しは英数キー / ダブルタップでかな切替 (Parallels前面時は Win-IME ON/OFF 動作)。
+- **英数(Tab)レイヤー** — Tab を保持しながら他キー押下で発火。単押しは英数キー / 英数+F13 でかな切替 (Parallels前面時は Win-IME ON/OFF 動作)。かな切替は Karabiner 側で HID レベル出力する (Hammerspoon の合成キー送出は酷使下で不安定なため移行)。
 - **F13(英数)レイヤー** — F13 を保持しながら他キー押下で発火。矢印・タブ操作・ウィンドウ移動など多数。
 
 ### ウィンドウ管理 (Hammerspoon)
 - `movetodisplay?idx=N` — N番目のディスプレイ (左から順) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。
 - `resizemoderate` — 1200x750 固定リサイズ (位置維持)。
-- `minimizedisplay` — アクティブウィンドウを最小化。Finder のみ app:hide() に分岐 (Finder は win:minimize() で AX 列挙から落ちて自作タスクバーから消える特殊仕様のため)。
+- `minimizedisplay` — アクティブウィンドウを最小化。Finder のみ app:hide() に分岐 (Finder は win:minimize() で AX 列挙から落ちて自作タスクバーから消える特殊仕様のため)。現状どのキーにも未割当 (F13+F は「更新」へ変更済み)、手動 URL 起動用に残置。
 
 ### 自作Win風タスクバー (`taskbar.lua`)
-画面下に貼り付くタスクバーをディスプレイごとに表示。左クリックでアクティブ化、右側 × でクローズ。差分 render + アイコンキャッシュで負荷軽減、windowMoved を debounce 化。Adobe / Parallels の windowFilter 取りこぼし対策に 1 秒フォールバック refresh あり。
+画面下に貼り付くタスクバーをディスプレイごとに表示。
+
+- **左クリック** — 常に「最前面 + フォーカス」(最小化トグルはしない。最小化すると AX 列挙から落ちてバーから消えるアプリが多いため)。最小化/hide 中なら復元してから最前面化。
+- **右側 ×** — クローズ。
+- **空き領域ダブルクリック** — Mission Control をトグル (`hs.spaces`、キー送出を使わない)。
+- 並び順はウィンドウID (生成順) で固定 (フォーカスしてもアクティブ窓が左へ飛ばない)。アクティブ項目の色付けはなし。
+
+差分 render + アイコンキャッシュで負荷軽減。windowMoved は購読せず 8 秒 poll + focus/title イベントでディスプレイ間移動を追従、windowFilter 取りこぼし対策に 1 秒フォールバック refresh あり。
 
 ### マウスボタン入れ替え (Chrome 限定)
 中ボタンと右クリックを入れ替え。トラックパッド対応のため Karabiner ではなく Hammerspoon (`hs.eventtap`) で実装。
@@ -77,8 +84,9 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | `2` | F2 |
 | `3` | Backspace |
 | `4` | Enter |
+| `W` | Cmd+F14 (Spotlight、Mac/Parallels両対応) |
+| `F13` (= 英数+F13) | かな (Parallels時: Win-IME ON) |
 | 単押し | 英数 (Parallels時: Win-IME OFF) |
-| ダブルタップ | かな (Parallels時: Win-IME ON) |
 
 ### F13レイヤー
 
@@ -91,8 +99,8 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | `A` | Ctrl+Shift+Tab (前タブ) | Explorer=Ctrl+Shift+Tab / 他=Ctrl+PgUp (AHK経由) |
 | `S` | Ctrl+Tab (次タブ) | Explorer=Ctrl+Tab / 他=Ctrl+PgDn (AHK経由) |
 | `D` | Cmd+Shift+T (閉じたタブを再開) | (同左) |
-| `F` | Hammerspoon 経由でアクティブウィンドウを最小化 (Finder は app:hide()) | (同左) |
-| `R` | Cmd+R (更新) | F5 |
+| `F` | Cmd+R (更新) | F5 |
+| `R` | Mission Control (`mission_control` キー送出。Parallels問わず Mac 全体) | (同左) |
 | `1` | 左ディスプレイに移動+最大化 | (AHK経由で同等処理) |
 | `2` | 右ディスプレイに移動+最大化 | (AHK経由で同等処理) |
 | `C` | Mac 本体ディスプレイ (中央) に移動+最大化 | (AHK経由で同等処理) |
@@ -105,8 +113,6 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | `Backspace` | Forward Delete | (同左) |
 | `G` | Opt+Shift+G (Chrome 拡張用) | (同左) |
 | `Z` | Opt+Shift+Z (Chrome 拡張用) | (同左) |
-| `Cmd+F13` | Cmd+F13 そのまま (AltTab.app 起動用、レイヤーは発動しない) | (同左) |
-| `Ctrl+F13` | Ctrl+F13 そのまま (Parallels経由の Cmd→Ctrl 変換後もAltTab起動) | (同左) |
 
 ### その他
 
