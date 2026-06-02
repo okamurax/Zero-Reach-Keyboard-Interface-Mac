@@ -141,6 +141,11 @@
                             {
                                 "conditions": [
                                     {
+                                        "name": "tab_held",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
                                         "bundle_identifiers": [
                                             "^com\\.parallels\\.desktop\\.console$",
                                             "^com\\.parallels\\.winapp\\."
@@ -148,7 +153,57 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "英数(Parallels) = Ctrl+Cmd+4 (Win IME OFF) + tab_heldレイヤー。ダブルタップ→Ctrl+Cmd+5(IME ON)はHammerspoonが時刻ベースで検出",
+                                "description": "英数+F13 (Parallels) = Ctrl+Cmd+5 (Win IME ON)。英数押下中にF13でかな確定",
+                                "from": {
+                                    "key_code": "f13",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "5",
+                                        "modifiers": ["left_control", "left_command"]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "tab_held",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
+                                    }
+                                ],
+                                "description": "英数+F13 (Mac) = かな (japanese_kana)。英数押下中にF13でかな確定",
+                                "from": {
+                                    "key_code": "f13",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "japanese_kana"
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "英数(Parallels) = Ctrl+Cmd+4 (Win IME OFF) + tab_heldレイヤー。ダブルタップ廃止、かなは英数+F13で切替(本ファイル内)",
                                 "from": {
                                     "key_code": "japanese_eisuu",
                                     "modifiers": { "optional": ["any"] }
@@ -185,7 +240,7 @@
                                         "type": "frontmost_application_unless"
                                     }
                                 ],
-                                "description": "英数 = japanese_eisuu + tab_heldレイヤー。ダブルタップ→かなはHammerspoonが時刻ベースで検出",
+                                "description": "英数 = japanese_eisuu + tab_heldレイヤー。ダブルタップ廃止、かなは英数+F13で切替(本ファイル内)",
                                 "from": {
                                     "key_code": "japanese_eisuu",
                                     "modifiers": { "optional": ["any"] }
