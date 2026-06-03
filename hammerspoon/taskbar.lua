@@ -354,14 +354,15 @@ refresh = function()
                         end
                     end
                     -- どのアイテムにも当たらなかった = 空き領域。
-                    -- 同じバー上で DBLCLICK_SEC 以内に2回目 → Mission Control をトグル。
-                    -- キー送出(Ctrl+↑)は単一CGEventSource死の影響を受けるため使わず、
-                    -- hs.spaces のAPI(キー送出なし)で開閉する。Mission Controlは全画面が対象
-                    -- (最小化のような画面単位ではない)。
+                    -- 同じバー上で DBLCLICK_SEC 以内に2回目 → 「デスクトップを表示」をトグル。
+                    -- 最小化と違いウィンドウは非最小化のまま画面外へ退避するだけなので、
+                    -- allWindows() に残りタスクバーから消えない (要望: 最小化せずデスクトップ表示)。
+                    -- キー送出(F11)は単一CGEventSource死の影響を受けるため使わず、
+                    -- hs.spaces のAPI(キー送出なし)で開閉する。
                     local now = hs.timer.secondsSinceEpoch()
                     if lastEmptyClick.id == id and (now - lastEmptyClick.at) < DBLCLICK_SEC then
                         lastEmptyClick.at = 0  -- 連続トリガ防止 (3クリック目で再発火しない)
-                        hs.spaces.toggleMissionControl()
+                        hs.spaces.toggleShowDesktop()
                     else
                         lastEmptyClick.id = id
                         lastEmptyClick.at = now
