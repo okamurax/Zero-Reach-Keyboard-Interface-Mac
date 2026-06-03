@@ -12,12 +12,12 @@
 local M = {}
 
 local BAR_H        = 38
--- hs.canvas のウィンドウは「リサイズ可能」扱いで、上下端にカーソルが乗ると縦リサイズ
--- カーソル(↕)が出る (canvas にリサイズ無効化APIが無い)。ウィンドウを上下に CURSOR_PAD
--- だけ広げ、リサイズ縁を可視バーの外 (上=透明帯/下=画面外) へ逃がす。中身は
--- transformation で同量下げるので見た目の位置は不変。
--- matrix API が無い環境では 0 にして従来動作にフォールバック (タスクバーを壊さない)。
-local CURSOR_PAD   = (hs.canvas.matrix and hs.canvas.matrix.translate) and 8 or 0
+-- hs.canvas のウィンドウは上端に↕(縦リサイズカーソル)が出る (リサイズ無効化APIが無い)。
+-- ウィンドウを上に CURSOR_PAD だけ広げ、↕の判定縁を可視バーの外(透明帯)へ逃がす。
+-- 中身は transformation で同量下げ位置不変。透明帯はクリックを奪うため、最小限の値にし、
+-- かつ click 時は y-guard で「帯のクリックは無視」して誤アプリ切替を防ぐ。
+-- matrix API が無い環境では 0 にフォールバック (タスクバーを壊さない)。
+local CURSOR_PAD   = (hs.canvas.matrix and hs.canvas.matrix.translate) and 4 or 0
 local ITEM_W       = 210   -- ボタン幅の最大値 (ウィンドウが少ないとき)
 local MIN_ITEM_W   = 60    -- ボタン幅の最小値 (圧縮の下限。アイコン+×が押せる幅)
 local ITEM_GAP     = 4
@@ -312,16 +312,19 @@ refresh = function()
 
         local bar = bars[id]
         if not bar then
-            local canvas = hs.canvas.new({ x = barX, y = barY - CURSOR_PAD, w = barW, h = BAR_H + CURSOR_PAD * 2 })
+            local canvas = hs.canvas.new({ x = barX, y = barY - CURSOR_PAD, w = barW, h = BAR_H + CURSOR_PAD })
             canvas:level(hs.canvas.windowLevels.dock - 1)
             canvas:behavior({ "canJoinAllSpaces", "stationary" })
             canvas:clickActivating(false)
-            -- 中身を CURSOR_PAD 下げ、広げたウィンドウ内で元の位置に描く (リサイズ縁逃がし)
+            -- 中身を CURSOR_PAD 下げ、広げた窓内で元位置に描く (↕縁逃がし)
             if CURSOR_PAD > 0 then
                 canvas:transformation(hs.canvas.matrix.translate(0, CURSOR_PAD))
             end
             canvas:mouseCallback(function(_, msg, _, x, y)
                 if msg ~= "mouseDown" then return end
+                -- 可視バー上端の透明帯(y < CURSOR_PAD ↕逃がし用)へのクリックは無視。
+                -- でないと最大化アプリのシークバー等を触った時に誤ってアプリ切替してしまう。
+                if y < CURSOR_PAD then return end
                 -- ターゲットアプリ終了直後の AX 例外などで callback 全体が死ぬのを防ぐ
                 local ok, err = pcall(function()
                     local b = bars[id]
@@ -372,7 +375,7 @@ refresh = function()
             bars[id] = bar
         else
             -- ディスプレイ解像度・位置が変わった場合に追従
-            bar.canvas:frame({ x = barX, y = barY - CURSOR_PAD, w = barW, h = BAR_H + CURSOR_PAD * 2 })
+            bar.canvas:frame({ x = barX, y = barY - CURSOR_PAD, w = barW, h = BAR_H + CURSOR_PAD })
             bar.w = barW
         end
 
