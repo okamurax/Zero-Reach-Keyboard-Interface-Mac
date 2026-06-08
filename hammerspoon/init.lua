@@ -63,10 +63,14 @@ end
 -- メニューバー高さは fullFrame と frame の差から検出 (Dock の有無に関係なく安定)。
 -- dockw=N は右端から差し引くピクセル数 (右配置の Mac Dock 回避用)。
 -- taskbar=N は下端から差し引くピクセル数 (下配置の Mac Dock や Windows タスクバー回避用)。
+-- taskbar>0 のときは自作タスクバーのカーソルガード帯(透明帯 4px)に下端が埋もれて
+-- アプリ自身のリサイズカーソル(↕)が出たり消えたりするため、さらに余白を空けて縮める。
+local TASKBAR_GAP = 8
 hs.urlevent.bind("movetodisplay", function(_, params)
     local idx = tonumber(params.idx) or 0
     local dockw = tonumber(params.dockw) or 0
     local taskbar = tonumber(params.taskbar) or 0
+    local gap = (taskbar > 0) and TASKBAR_GAP or 0
 
     local screen = screenAtIndex(idx)
     if not screen then return end
@@ -78,7 +82,7 @@ hs.urlevent.bind("movetodisplay", function(_, params)
     local x = full.x
     local y = full.y + menubarH
     local w = full.w - dockw
-    local h = full.h - menubarH - taskbar
+    local h = full.h - menubarH - taskbar - gap
 
     local target, kind = focusedTarget()
     if not target then return end
