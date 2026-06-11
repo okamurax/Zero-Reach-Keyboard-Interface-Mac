@@ -1546,9 +1546,16 @@
                                         "name": "cmd_c_tapped",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
                                     }
                                 ],
-                                "description": "【2回目】500ms以内ならば行選択してコピー",
+                                "description": "【2回目】500ms以内ならば行選択してコピー ※Parallels以外 (Parallels時は別ルール)",
                                 "from": {
                                     "key_code": "c",
                                     "modifiers": { "mandatory": ["left_command"] }
@@ -1576,7 +1583,16 @@
                                 "type": "basic"
                             },
                             {
-                                "description": "【1回目】即座にコピーし、ダブルタップ検出用変数をセット",
+                                "conditions": [
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
+                                    }
+                                ],
+                                "description": "【1回目】即座にコピーし、ダブルタップ検出用変数をセット ※Parallels以外",
                                 "from": {
                                     "key_code": "c",
                                     "modifiers": { "mandatory": ["left_command"] }
@@ -1607,6 +1623,98 @@
                                         {
                                             "set_variable": {
                                                 "name": "cmd_c_tapped",
+                                                "value": 0
+                                            }
+                                        }
+                                    ]
+                                },
+                                "type": "basic"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Parallels時: 物理Ctrl+C (=left_control+c) ダブルタップで行選択コピー (Win: End→Shift+Home→Ctrl+C)",
+                        "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "ctrl_c_tapped_win",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "【2回目/Parallels】500ms以内ならば行選択してコピー (End→Shift+Home→Ctrl+C)",
+                                "from": {
+                                    "key_code": "c",
+                                    "modifiers": { "mandatory": ["left_control"] }
+                                },
+                                "to": [
+                                    {
+                                        "set_variable": {
+                                            "name": "ctrl_c_tapped_win",
+                                            "value": 0
+                                        }
+                                    },
+                                    { "key_code": "end" },
+                                    {
+                                        "key_code": "home",
+                                        "modifiers": ["left_shift"]
+                                    },
+                                    {
+                                        "key_code": "c",
+                                        "modifiers": ["left_control"]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "【1回目/Parallels】即座にコピー(Ctrl+C)し、ダブルタップ検出用変数をセット",
+                                "from": {
+                                    "key_code": "c",
+                                    "modifiers": { "mandatory": ["left_control"] }
+                                },
+                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 500 },
+                                "to": [
+                                    {
+                                        "key_code": "c",
+                                        "modifiers": ["left_control"]
+                                    },
+                                    {
+                                        "set_variable": {
+                                            "name": "ctrl_c_tapped_win",
+                                            "value": 1
+                                        }
+                                    }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_canceled": [
+                                        {
+                                            "set_variable": {
+                                                "name": "ctrl_c_tapped_win",
+                                                "value": 0
+                                            }
+                                        }
+                                    ],
+                                    "to_if_invoked": [
+                                        {
+                                            "set_variable": {
+                                                "name": "ctrl_c_tapped_win",
                                                 "value": 0
                                             }
                                         }
