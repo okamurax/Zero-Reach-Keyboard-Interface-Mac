@@ -114,6 +114,28 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | `G` | Opt+Shift+G (Chrome 拡張用) | (同左) |
 | `Z` | Opt+Shift+Z (Chrome 拡張用) | (同左) |
 
+#### F13 記号サブレイヤー (Mac/Parallels 共通)
+
+ホームポジション周辺で JIS の記号を直接打つためのサブレイヤー。出力は Mac / Parallels 同一。
+
+| キー | 出力 | 内訳 (JIS) |
+|---|---|---|
+| `N` | `(` | Shift+8 |
+| `M` | `)` | Shift+9 |
+| `,` | `<` | Shift+, |
+| `.` | `>` | Shift+. |
+| `Y` | `¥` | international3 |
+| `U` | `"` | Shift+2 |
+| `I` | `'` | Shift+7 |
+| `O` | `#` | Shift+3 |
+| `P` | `%` | Shift+5 |
+| `:` | `&` | Shift+6 |
+| `-` | `@` | open_bracket |
+| `/` | `!` | Shift+1 |
+| `[` | `^` | equal_sign |
+| `]` | `$` | Shift+4 |
+| `_` | `\|` | Shift+international3 |
+
 ### その他
 
 | 操作 | 機能 |
