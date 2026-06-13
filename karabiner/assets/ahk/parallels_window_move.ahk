@@ -2,9 +2,9 @@
 #SingleInstance Force
 
 ; Karabiner経由でMac側から送られてくるトリガーを処理する。
-;   Ctrl+Win+1 = 左ディスプレイに移動+最大化 (F13+1 相当)
-;   Ctrl+Win+2 = 右ディスプレイに移動+最大化 (F13+2 相当、インデックス3想定・足りなければ最後)
-;   Ctrl+Win+3 = 中央ディスプレイ(Mac本体)に移動+最大化 (F13+C 相当)
+; ※ F13+1/2/C のディスプレイ間移動は AHK(Ctrl+Win+1/2/3)を廃止し Hammerspoon に一本化した。
+;    VM本体コンソール窓に触れた後 Parallels へのキー配送が詰まりコヒーレンス窓が動かなくなる
+;    固着があったため。HS の focusedWindow+setFrame で Mac/コヒーレンス/VM本体すべて直接移動する。
 ;   Ctrl+Win+4 = MS-IME OFF (英数モード)      (英数単押し相当)
 ;   Ctrl+Win+5 = MS-IME ON  (ひらがなモード)  (英数ダブルタップ相当)
 ;   Ctrl+Win+6 = 1200x750 固定リサイズ・位置維持 (F13+X 相当)
@@ -20,50 +20,6 @@
 ; ※ F13+Q/W は Opt+矢印 だと macOS の単語移動ショートカットと競合し Parallels に届かないため
 ;    AHKトンネル経由に変更。
 
-; MonitorGetWorkArea は Mac Dock 領域は既に除外した値を返すが、Hammerspoon 自作タスクバー
-; (overlayウィンドウ) は Parallels から見えないため認識されない。よって下端のみ手動オフセット。
-MAC_TASKBAR_BOTTOM := 38   ; Hammerspoon自作タスクバー (全ディスプレイ共通)
-
-GetSortedMonitors() {
-    mons := []
-    Loop MonitorGetCount() {
-        MonitorGetWorkArea(A_Index, &L, &T, &R, &B)
-        mons.Push({L: L, T: T, R: R, B: B})
-    }
-    n := mons.Length
-    i := 1
-    while (i < n) {
-        j := 1
-        while (j <= n - i) {
-            if (mons[j].L > mons[j + 1].L) {
-                tmp := mons[j]
-                mons[j] := mons[j + 1]
-                mons[j + 1] := tmp
-            }
-            j++
-        }
-        i++
-    }
-    return mons
-}
-
-MoveToMonitor(sortedIdx) {
-    global MAC_TASKBAR_BOTTOM
-    hwnd := WinExist("A")
-    if (!hwnd)
-        return
-    mons := GetSortedMonitors()
-    if (sortedIdx > mons.Length)
-        sortedIdx := mons.Length
-    if (sortedIdx < 1)
-        sortedIdx := 1
-    m := mons[sortedIdx]
-
-    if (WinGetMinMax(hwnd) != 0)
-        WinRestore(hwnd)
-    WinMove(m.L, m.T, m.R - m.L, m.B - m.T - MAC_TASKBAR_BOTTOM, hwnd)
-}
-
 ModerateResize() {
     hwnd := WinExist("A")
     if (!hwnd)
@@ -74,9 +30,6 @@ ModerateResize() {
     WinMove(x, y, 1200, 750, hwnd)
 }
 
-^#1::MoveToMonitor(1)
-^#2::MoveToMonitor(3)
-^#3::MoveToMonitor(2)
 ^#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
 ^#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
 ^#6::ModerateResize()
