@@ -299,44 +299,9 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+1 (Parallels) = Ctrl+Cmd+1送出。Windows側AHKで処理",
-                                "from": {
-                                    "key_code": "1",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "1",
-                                        "modifiers": ["left_control", "left_command"]
-                                    }
-                                ],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_unless"
-                                    }
-                                ],
-                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化",
+                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)",
                                 "from": {
                                     "key_code": "1",
                                     "modifiers": { "optional": ["any"] }
@@ -350,44 +315,9 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+2 (Parallels) = Ctrl+Cmd+2送出。Windows側AHKで処理",
-                                "from": {
-                                    "key_code": "2",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "2",
-                                        "modifiers": ["left_control", "left_command"]
-                                    }
-                                ],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_unless"
-                                    }
-                                ],
-                                "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化",
+                                "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)",
                                 "from": {
                                     "key_code": "2",
                                     "modifiers": { "optional": ["any"] }
@@ -1099,44 +1029,9 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+C (Parallels) = Ctrl+Cmd+3送出。Windows側AHKで処理",
-                                "from": {
-                                    "key_code": "c",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "3",
-                                        "modifiers": ["left_control", "left_command"]
-                                    }
-                                ],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_unless"
-                                    }
-                                ],
-                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化",
+                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)",
                                 "from": {
                                     "key_code": "c",
                                     "modifiers": { "optional": ["any"] }
