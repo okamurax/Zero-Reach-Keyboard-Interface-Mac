@@ -89,6 +89,23 @@ hs.urlevent.bind("movetodisplay", function(_, params)
     setTargetFrame(target, kind, x, y, w, h)
 end)
 
+-- hammerspoon://prevwindow
+-- 直前まで手前にあったウィンドウへフォーカスを移す (Win風 Alt+Tab の交互トグル)。
+-- 状態は一切持たず、毎回ウィンドウサーバの重なり順 (orderedWindows) を読むだけ。
+-- [1] は現在の手前窓なので、それ以外の最初の通常ウィンドウ = 直前の窓。
+-- フォーカスは「読む」のではなく「セットする」だけなので Parallels の固着の影響を受けにくく、
+-- 毎回作り直すため状態のズレも起きない。
+hs.urlevent.bind("prevwindow", function(_, _)
+    local cur = hs.window.focusedWindow()
+    for _, w in ipairs(hs.window.orderedWindows()) do
+        if w ~= cur and w:isStandard()
+            and w:application() and w:application():bundleID() ~= "org.hammerspoon.Hammerspoon" then
+            w:focus()
+            return
+        end
+    end
+end)
+
 -- hammerspoon://minimizedisplay
 -- アクティブウィンドウ 1 つだけを minimize する。
 -- 注: 現状この URL は karabiner のどのキーにも割り当てていない (F13+F は「更新」に変更済み)。

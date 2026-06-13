@@ -301,6 +301,22 @@
                                         "value": 1
                                     }
                                 ],
+                                "description": "F13+V = 直前のウィンドウへフォーカス (Win風Alt+Tab交互トグル、HS prevwindow)",
+                                "from": {
+                                    "key_code": "v",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "shell_command": "open -g 'hammerspoon://prevwindow'" }],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    }
+                                ],
                                 "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)",
                                 "from": {
                                     "key_code": "1",
