@@ -62,33 +62,12 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "英数+1 = F12",
+                                "description": "英数+1 = ピリオド(.)",
                                 "from": {
                                     "key_code": "1",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "f12" }],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "tab_held",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_unless",
-                                        "value": 1
-                                    }
-                                ],
-                                "description": "英数+2 = F2",
-                                "from": {
-                                    "key_code": "2",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [{ "key_code": "f2" }],
+                                "to": [{ "key_code": "period" }],
                                 "type": "basic"
                             },
                             {
@@ -654,22 +633,6 @@
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [{ "key_code": "end" }],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    }
-                                ],
-                                "description": "F13+0 = ピリオド(.)",
-                                "from": {
-                                    "key_code": "0",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [{ "key_code": "period" }],
                                 "type": "basic"
                             },
                             {
