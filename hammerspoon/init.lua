@@ -86,6 +86,16 @@ hs.urlevent.bind("movetodisplay", function(_, params)
 
     local target, kind = focusedTarget()
     if not target then return end
+    -- 無駄打ち防止: 既に目的地と数px以内なら setFrame しない。
+    -- F13+同一ディスプレイの連打で Parallels コヒーレンス窓へ移動要求が無駄に
+    -- 積み上がり WindowServer を固めた件 (2026-06-29) の軽量ガード。
+    if kind == "window" then
+        local c = target:frame()
+        if c and math.abs(c.x - x) < 4 and math.abs(c.y - y) < 4
+             and math.abs(c.w - w) < 4 and math.abs(c.h - h) < 4 then
+            return
+        end
+    end
     setTargetFrame(target, kind, x, y, w, h)
 end)
 
