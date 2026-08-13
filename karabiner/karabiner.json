@@ -322,7 +322,7 @@
                                     "key_code": "1",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=0&taskbar=38'" }],
+                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=0'" }],
                                 "type": "basic"
                             },
                             {
@@ -338,7 +338,7 @@
                                     "key_code": "2",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=2&taskbar=38'" }],
+                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=2'" }],
                                 "type": "basic"
                             },
                             {
@@ -1001,7 +1001,7 @@
                                     "key_code": "c",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&dockw=61&taskbar=38'" }],
+                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&dockw=61'" }],
                                 "type": "basic"
                             },
                             {
