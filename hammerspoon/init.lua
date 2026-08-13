@@ -63,14 +63,17 @@ end
 -- メニューバー高さは fullFrame と frame の差から検出 (Dock の有無に関係なく安定)。
 -- dockw=N は右端から差し引くピクセル数 (右配置の Mac Dock 回避用)。
 -- taskbar=N は下端から差し引くピクセル数 (下配置の Mac Dock や Windows タスクバー回避用)。
+-- 省略時は自作タスクバーの実高さ (taskbar.BAR_H) を使う。呼び出し側 (Karabiner の
+-- URL) に高さを書かないことで値の二重管理を避ける。回避したくない場合は taskbar=0。
 -- taskbar>0 のときは自作タスクバーのカーソルガード帯(透明帯 4px)に下端が埋もれて
 -- アプリ自身のリサイズカーソル(↕)が出たり消えたりするため、さらに余白を空けて縮める。
 local TASKBAR_GAP = 8
 hs.urlevent.bind("movetodisplay", function(_, params)
     local idx = tonumber(params.idx) or 0
     local dockw = tonumber(params.dockw) or 0
-    local taskbar = tonumber(params.taskbar) or 0
-    local gap = (taskbar > 0) and TASKBAR_GAP or 0
+    -- モジュール taskbar を隠さないよう別名にする (以前 local taskbar で覆っていた)
+    local taskbarH = tonumber(params.taskbar) or taskbar.BAR_H
+    local gap = (taskbarH > 0) and TASKBAR_GAP or 0
 
     local screen = screenAtIndex(idx)
     if not screen then return end
@@ -82,7 +85,7 @@ hs.urlevent.bind("movetodisplay", function(_, params)
     local x = full.x
     local y = full.y + menubarH
     local w = full.w - dockw
-    local h = full.h - menubarH - taskbar - gap
+    local h = full.h - menubarH - taskbarH - gap
 
     local target, kind = focusedTarget()
     if not target then return end
@@ -165,6 +168,18 @@ end)
 -- ONだと3本指タップで中クリックが合成され、文字入力中に手のひらが3点触れただけで
 -- ここが右クリックに変換し、Chrome にコンテキストメニューが暴発する。
 -- macOS 側の「タップでクリック」設定とは無関係に発火するのでOSでは止められない。
+--
+-- 変換の可否は「押した瞬間」に判定して離すまで保持する (down/up を必ず対で扱う)。
+-- up のたびに前面アプリを見直すと、押している最中に Chrome が前面から外れた場合に
+-- down だけ変換され up が素通りし、Chrome にボタン押下状態が残ってしまうため。
+local middleSwapped = false   -- 中ボタン→右 に変換中
+local rightSwapped  = false   -- 右→中ボタン に変換中
+
+local function chromeIsFrontmost()
+    local app = hs.application.frontmostApplication()
+    return app ~= nil and app:bundleID() == "com.google.Chrome"
+end
+
 mouseSwapWatcher = hs.eventtap.new({
     hs.eventtap.event.types.otherMouseDown,
     hs.eventtap.event.types.otherMouseUp,
@@ -172,24 +187,34 @@ mouseSwapWatcher = hs.eventtap.new({
     hs.eventtap.event.types.rightMouseUp,
 }, function(event)
     local ok, handled, replacement = pcall(function()
-        local app = hs.application.frontmostApplication()
-        if not app or app:bundleID() ~= "com.google.Chrome" then
-            return false
-        end
-
+        local types = hs.eventtap.event.types
+        local props = hs.eventtap.event.properties
         local eventType = event:getType()
 
-        if eventType == hs.eventtap.event.types.otherMouseDown and event:getProperty(hs.eventtap.event.properties.mouseEventButtonNumber) == 2 then
-            return true, { hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.rightMouseDown, event:location()) }
-        elseif eventType == hs.eventtap.event.types.otherMouseUp and event:getProperty(hs.eventtap.event.properties.mouseEventButtonNumber) == 2 then
-            return true, { hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.rightMouseUp, event:location()) }
-        elseif eventType == hs.eventtap.event.types.rightMouseDown then
-            local e = hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.otherMouseDown, event:location())
-            e:setProperty(hs.eventtap.event.properties.mouseEventButtonNumber, 2)
+        if eventType == types.otherMouseDown then
+            if event:getProperty(props.mouseEventButtonNumber) ~= 2 then return false end
+            middleSwapped = chromeIsFrontmost()
+            if not middleSwapped then return false end
+            return true, { hs.eventtap.event.newMouseEvent(types.rightMouseDown, event:location()) }
+
+        elseif eventType == types.otherMouseUp then
+            if event:getProperty(props.mouseEventButtonNumber) ~= 2 then return false end
+            if not middleSwapped then return false end
+            middleSwapped = false
+            return true, { hs.eventtap.event.newMouseEvent(types.rightMouseUp, event:location()) }
+
+        elseif eventType == types.rightMouseDown then
+            rightSwapped = chromeIsFrontmost()
+            if not rightSwapped then return false end
+            local e = hs.eventtap.event.newMouseEvent(types.otherMouseDown, event:location())
+            e:setProperty(props.mouseEventButtonNumber, 2)
             return true, { e }
-        elseif eventType == hs.eventtap.event.types.rightMouseUp then
-            local e = hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.otherMouseUp, event:location())
-            e:setProperty(hs.eventtap.event.properties.mouseEventButtonNumber, 2)
+
+        elseif eventType == types.rightMouseUp then
+            if not rightSwapped then return false end
+            rightSwapped = false
+            local e = hs.eventtap.event.newMouseEvent(types.otherMouseUp, event:location())
+            e:setProperty(props.mouseEventButtonNumber, 2)
             return true, { e }
         end
 
