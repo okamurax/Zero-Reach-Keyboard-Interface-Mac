@@ -151,9 +151,11 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 ```sh
 git clone https://github.com/okamurax/Zero-Reach-Keyboard-Interface-Mac.git
 cd Zero-Reach-Keyboard-Interface-Mac
-ln -s "$(pwd)/karabiner"   ~/.config/karabiner
-ln -s "$(pwd)/hammerspoon" ~/.hammerspoon
+cp -R karabiner/*   ~/.config/karabiner/
+cp -R hammerspoon/* ~/.hammerspoon/
 ```
+
+**symlink にしないこと。** Karabiner-Elements は GUI を操作するたび `~/.config/karabiner/karabiner.json` を書き戻して JSON を再整形するため、symlink だとリポジトリのファイルが直接上書きされて意図しない差分が入る。リポジトリ → 実行先は常にコピーで配布し、変更はリポジトリ側で編集してから配り直す。
 
 その後:
 1. Karabiner-Elements の GUI から complex_modifications の rule を有効化
