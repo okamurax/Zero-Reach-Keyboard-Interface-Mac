@@ -35,7 +35,8 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - **F13(英数)レイヤー** — F13 を保持しながら他キー押下で発火。矢印・タブ操作・ウィンドウ移動など多数。
 
 ### ウィンドウ管理 (Hammerspoon)
-- `movetodisplay?idx=N` — N番目のディスプレイ (左から順) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。
+- `movetodisplay?idx=N` — N番目のディスプレイ (左から順) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。自作タスクバーの高さは `taskbar.lua` の `BAR_H` を直接参照するので URL には渡さない (値の二重管理を避けるため)。`idx` がディスプレイ数を超える場合は最右にクランプする (2画面では `idx=1` の「中央」も最右に丸まる)。
+- `prevwindow` — 直前まで手前にあったウィンドウへフォーカス (Win 風 Alt+Tab の交互トグル)。状態を持たず毎回 `orderedWindows` の重なり順を読むだけなので、Parallels のフォーカス固着の影響を受けにくい。
 - `resizemoderate` — 1200x750 固定リサイズ (位置維持)。
 - `minimizedisplay` — アクティブウィンドウを最小化。Finder のみ app:hide() に分岐 (Finder は win:minimize() で AX 列挙から落ちて自作タスクバーから消える特殊仕様のため)。現状どのキーにも未割当 (F13+F は「更新」へ変更済み)、手動 URL 起動用に残置。
 
@@ -47,7 +48,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - **空き領域ダブルクリック** — 「デスクトップを表示」をトグル (`hs.spaces.toggleShowDesktop`、キー送出を使わない)。最小化と違いウィンドウは非最小化のまま退避するのでバーから消えない。Mission Control は F13+R に残置。
 - 並び順はウィンドウID (生成順) で固定 (フォーカスしてもアクティブ窓が左へ飛ばない)。アクティブ項目の色付けはなし。
 
-差分 render + アイコンキャッシュで負荷軽減。windowMoved は購読せず 8 秒 poll + focus/title イベントでディスプレイ間移動を追従、windowFilter 取りこぼし対策に 1 秒フォールバック refresh あり。
+差分 render + アイコンキャッシュで負荷軽減。windowMoved は購読せず、windowFilter の取りこぼし (Adobe / Parallels) とディスプレイ間移動は 8 秒のフォールバックポーリング + focus/title イベントで拾う。各イベントは 200ms の debounce でまとめ、連射が続いて発火し続ける場合もバースト開始から最長 1 秒で必ず 1 回 flush する (starvation 防止)。
 
 ### マウスボタン入れ替え (Chrome 限定)
 中ボタンと右クリックを入れ替え。トラックパッド対応のため Karabiner ではなく Hammerspoon (`hs.eventtap`) で実装。
@@ -80,8 +81,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | キー | 機能 |
 |---|---|
 | `Q` | ESC |
-| `1` | F12 |
-| `2` | F2 |
+| `1` | `.` (ピリオド) |
 | `3` | Backspace |
 | `4` | Enter |
 | `W` | Cmd+F14 (Spotlight、Mac/Parallels両対応) |
@@ -93,6 +93,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | キー | Mac 前面 | Parallels 前面 (Coherence Winアプリ) |
 |---|---|---|
 | `H` `J` `K` `L` | ← ↓ ↑ → | (同左) |
+| `V` | 直前のウィンドウへフォーカス (Win風 Alt+Tab) | (同左) |
 | `Q` | Cmd+[ (戻る) | Alt+Left (Explorer/ブラウザ、AHK経由) |
 | `W` | Cmd+] (進む) | Alt+Right (Explorer/ブラウザ、AHK経由) |
 | `E` | Cmd+W (タブを閉じる) | (同左) |
@@ -109,7 +110,6 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | `4` | Cmd+↓ (ドキュメント末尾) | Ctrl+End |
 | `7` | Cmd+← (行頭) | Home |
 | `8` | Cmd+→ (行末) | End |
-| `0` | `.` (ピリオド) | (同左) |
 | `Backspace` | Forward Delete | (同左) |
 | `G` | Opt+Shift+G (Chrome 拡張用) | (同左) |
 | `Z` | Opt+Shift+Z (Chrome 拡張用) | (同左) |
@@ -144,7 +144,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | 左Cmd ダブルタップ (Mac) | Cmd+Shift+V (Clipy) |
 | 左Cmd ダブルタップ (Parallels前面) | Cmd+Shift+V (Mac側 Clipy) |
 | 左Cmd 修飾時 (Parallels前面) | 左Ctrl として送出 |
-| 左Ctrl(=Cmd) + I | F7 (カタカナ変換) |
+| 左Ctrl(=Cmd) + I | F7 (カタカナ変換)。日本語入力モード中のみ。英数モードでは素の Cmd+I が通る (Finder の「情報を見る」等) |
 
 ## セットアップ
 
