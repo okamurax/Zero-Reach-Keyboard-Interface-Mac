@@ -1,6 +1,20 @@
 -- ウィンドウ操作の Hammerspoon 自前アニメーションを無効化（即時反映）
 hs.window.animationDuration = 0
 
+-- AX (アクセシビリティAPI) の応答待ち上限。既定はシステム値 (約6秒) で、
+-- Parallels コヒーレンスや Adobe のように AX サーバが詰まるアプリが1つでもいると
+-- その1回の問い合わせがメインスレッドを数秒ブロックする。
+-- HS の Lua はメインスレッド1本なので、その間 eventtap のコールバックも返せず、
+-- macOS がタップを「タイムアウトした」と見なして無効化する
+-- (= Chrome の中クリック⇔右クリック入替が無言で死ぬ)。
+-- 1秒で切ることで、詰まったアプリの窓が一時的にタスクバーから消えるだけで済ませる。
+-- ※これは「1回のAX呼び出し」の上限。refresh 全体 (ウィンドウ数×6〜7回) の合計を
+--   縛るものではないので、下の watchdog と併用して初めて意味を持つ。
+-- 失敗しても false を返すだけで例外にならないため、黙って既定値のままにならないよう記録する。
+if not hs.window.timeout(1) then
+    hs.printf("[init] hs.window.timeout(1) failed; AX timeout stays at the system default (~6s)")
+end
+
 -- hammerspoon://reload で設定再読込を可能にする
 hs.urlevent.bind("reload", function() hs.reload() end)
 
@@ -231,8 +245,14 @@ end):start()
 
 -- macOS はコールバックが重い/タイムアウトするとタップを自動無効化する。
 -- 定期的に生存確認し、無効化されていたら再有効化して機能を自動復旧する。
-mouseSwapWatchdog = hs.timer.doEvery(5, function()
+-- isEnabled() は CGEventTapIsEnabled を見ているので OS 側の無効化を検出できる。
+-- Hammerspoon 自身はコールバック内で自動再有効化していないため、この watchdog が
+-- 唯一の復旧経路であり、間隔がそのまま「無言でクリック変換が死んでいる最大時間」に
+-- なる。5秒では体感で気づいてしまうので1秒にする (CGEventTapIsEnabled は安価)。
+local WATCHDOG_INTERVAL = 1
+mouseSwapWatchdog = hs.timer.doEvery(WATCHDOG_INTERVAL, function()
     if mouseSwapWatcher and not mouseSwapWatcher:isEnabled() then
+        hs.printf("[mouseSwap] tap was disabled by the OS; re-enabling")
         mouseSwapWatcher:start()
     end
 end)
