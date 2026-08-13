@@ -1680,9 +1680,15 @@
                         ]
                     },
                     {
-                        "description": "Left Control(→Command)+I = F7(カタカナ変換)",
+                        "description": "Left Control(→Command)+I = F7(カタカナ変換) ※日本語入力モード時のみ。英数モードでは素のCmd+I(Finderの情報を見る等)を通す",
                         "manipulators": [
                             {
+                                "conditions": [
+                                    {
+                                        "input_sources": [{ "input_mode_id": "com\\.apple\\.inputmethod\\.Japanese" }],
+                                        "type": "input_source_if"
+                                    }
+                                ],
                                 "from": {
                                     "key_code": "i",
                                     "modifiers": {
