@@ -159,6 +159,12 @@ end)
 -- （トラックパッド対応のため Karabiner ではなく Hammerspoon で処理）
 -- コールバックは pcall で保護する。getProperty 等で例外が出てもタップを
 -- 巻き込んで殺さないようにし、恒久的な機能停止を防ぐ。
+--
+-- 前提: トラックパッドの中クリックは MiddleClick.app が供給している。
+-- MiddleClick の "Tap to click" は必ず OFF (= 3本指の物理押し込みを要求) にする。
+-- ONだと3本指タップで中クリックが合成され、文字入力中に手のひらが3点触れただけで
+-- ここが右クリックに変換し、Chrome にコンテキストメニューが暴発する。
+-- macOS 側の「タップでクリック」設定とは無関係に発火するのでOSでは止められない。
 mouseSwapWatcher = hs.eventtap.new({
     hs.eventtap.event.types.otherMouseDown,
     hs.eventtap.event.types.otherMouseUp,
