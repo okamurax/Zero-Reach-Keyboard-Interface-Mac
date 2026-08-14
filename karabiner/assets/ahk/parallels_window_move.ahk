@@ -19,6 +19,21 @@
 ; ※ F13+Q/W は Opt+矢印 だと macOS の単語移動ショートカットと競合し Parallels に届かないため
 ;    AHKトンネル経由に変更。
 
+; ---------------------------------------------------------------------------
+; 死活監視用ハートビート
+; このスクリプトが黙って落ちると Windows 側のトンネルが全滅するが、従来は
+; 「Windowsだけ効かない」という体感でしか気づけなかった。30秒ごとに Mac 側から
+; 見える場所へ時刻を書き、Hammerspoon (init.lua の ahkHeartbeatWatchdog) が
+; 更新の途絶を検出して通知する。
+;
+; 共有フォルダ (\\Mac\Home) が無効でもスクリプト本体を絶対に巻き込まないよう
+; try で握り潰す。書けない場合は Mac 側にファイルが現れず、監視側は「未配線」
+; とみなして黙る (誤報を出さない)。
+; ---------------------------------------------------------------------------
+HEARTBEAT_PATH := "\\Mac\Home\.zero-reach-ahk-heartbeat"
+WriteHeartbeat()                  ; 起動直後に1回書き、配線できているか即確認できるようにする
+SetTimer(WriteHeartbeat, 30000)
+
 ^#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
 ^#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
 ^#7::Send("!{Right}")  ; F13+W (進む)
@@ -38,4 +53,16 @@ SwitchTabNext() {
         Send("^{Tab}")
     else
         Send("^{PgDn}")
+}
+
+WriteHeartbeat() {
+    global HEARTBEAT_PATH
+    ; FileDelete は対象が無いと例外を投げるので個別に try で包む。
+    ; 共有フォルダが使えない環境でもここでスクリプトを落とさないことが最優先。
+    try {
+        FileDelete(HEARTBEAT_PATH)
+    }
+    try {
+        FileAppend(FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss"), HEARTBEAT_PATH)
+    }
 }
