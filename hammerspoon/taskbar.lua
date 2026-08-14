@@ -81,12 +81,31 @@ end
 
 -- filter 取りこぼし対策のフォールバックポーリング (8秒間隔)
 -- ディスプレイスリープ中は止める (寝てる画面に描画して AppKit エラーを吐くため)
+local POLL_INTERVAL = 8
+local pollingActive = false
 local function startPoll()
+    pollingActive = true
     if refreshTimer then return end
-    refreshTimer = hs.timer.doEvery(8, scheduleRefresh)
+    refreshTimer = hs.timer.doEvery(POLL_INTERVAL, scheduleRefresh)
 end
 local function stopPoll()
+    pollingActive = false
     if refreshTimer then refreshTimer:stop(); refreshTimer = nil end
+end
+
+-- 生存監視用。refresh が最後に完走した時刻からの経過秒を返す。
+--
+-- windowFilter の購読 / refreshTimer / screen・app・caffeinate の各 watcher には
+-- どれも生存確認 API が無く、個別に「生きているか」を問うことができない。
+-- そこで機構ごとに調べるのをやめ、「結果として描画が更新され続けているか」という
+-- 単一の観測点に集約する。どれが倒れてもここが進まなくなるので一度に検出できる。
+--
+-- ディスプレイスリープ中はポーリングを意図的に止めており更新が無いのが正常なので、
+-- その間は nil (=判定不能) を返して監視側に見送らせる。
+local lastRefreshAt = 0
+function M.secondsSinceRefresh()
+    if not pollingActive then return nil end
+    return hs.timer.secondsSinceEpoch() - lastRefreshAt
 end
 
 -- 現在のスクリーンID集合を表す文字列 (構成変化検出用)
@@ -386,6 +405,9 @@ refresh = function()
 
         renderBar(bar, g.wins)
     end
+
+    -- 完走した時だけ更新する (途中で AX 例外等が出たら進めない = 監視側が検知する)
+    lastRefreshAt = hs.timer.secondsSinceEpoch()
 end
 
 function M.start()

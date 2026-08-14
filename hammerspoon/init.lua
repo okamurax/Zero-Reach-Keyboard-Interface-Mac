@@ -257,6 +257,62 @@ mouseSwapWatchdog = hs.timer.doEvery(WATCHDOG_INTERVAL, function()
     end
 end)
 
+-- タスクバーの生存監視。
+-- windowFilter の購読・8秒ポーリング・screen/app/caffeinate の各 watcher には
+-- 生存確認 API が無いので、機構ごとに調べず「描画が更新され続けているか」という
+-- 結果側の一点で見る (taskbar.secondsSinceRefresh)。どれが倒れてもここで捕まる。
+-- 止まっていたら watcher 一式を畳んで作り直す。従来はここが倒れると無言で
+-- タスクバーが凍りつき、エラーもログも出ないまま気づけなかった。
+-- nil はディスプレイスリープ中 (ポーリングを意図的に停止中) なので見送る。
+local TASKBAR_STALE_SEC = 30   -- ポーリング間隔8秒の3回分以上あけて誤検知を避ける
+taskbarWatchdog = hs.timer.doEvery(TASKBAR_STALE_SEC, function()
+    local age = taskbar.secondsSinceRefresh()
+    if not age or age <= TASKBAR_STALE_SEC then return end
+    hs.printf("[taskbar] no refresh for %.0fs; restarting watchers", age)
+    pcall(taskbar.stop)
+    pcall(taskbar.start)
+end)
+
+-- Parallels VM 内 AHK の死活監視。
+-- AHK が黙って落ちると Windows 側のトンネル (F13+Q/W/A/S、IME ON/OFF 等) が
+-- 全滅するが、これまで気づく手段が「Windowsだけ効かない」という体感しか無かった。
+-- AHK 側が \\Mac\Home\.zero-reach-ahk-heartbeat を30秒ごとに書くので、
+-- その更新が途絶えていたら通知する。
+--
+-- 誤報を出さない条件を2つ課している:
+--   * ファイルが存在しない = ハートビート未配線 (共有フォルダ無効/旧AHK) とみなし黙る
+--   * Parallels が前面のときだけ判定する。VM 停止中やMac作業中に鳴らさないため
+-- 復帰したらフラグを戻し、1回の停止につき通知は1度だけにする。
+local AHK_HEARTBEAT = os.getenv("HOME") .. "/.zero-reach-ahk-heartbeat"
+local AHK_STALE_SEC = 90       -- AHK側の書き込み間隔30秒の3回分
+local ahkWarned = false
+
+local function parallelsIsFrontmost()
+    local app = hs.application.frontmostApplication()
+    if not app then return false end
+    local bid = app:bundleID() or ""
+    return bid == "com.parallels.desktop.console"
+        or bid:find("^com%.parallels%.winapp%.") ~= nil
+end
+
+ahkHeartbeatWatchdog = hs.timer.doEvery(30, function()
+    local mtime = hs.fs.attributes(AHK_HEARTBEAT, "modification")
+    if not mtime then return end   -- 未配線: 黙る
+
+    local age = os.time() - mtime
+    if age <= AHK_STALE_SEC then
+        ahkWarned = false
+        return
+    end
+    if ahkWarned or not parallelsIsFrontmost() then return end
+
+    ahkWarned = true
+    hs.printf("[ahk] heartbeat stale for %ds; AHK in the VM is likely dead", age)
+    hs.notify.show("AHK が停止しています",
+        "Parallels 内の Windows 側トンネルが全滅しています",
+        string.format("最終応答から %d 秒。VM 内で parallels_window_move.ahk を再実行してください", age))
+end)
+
 -- hammerspoon://reload (= hs.reload) や終了の前に OS リソースを握る
 -- eventtap / timer / watcher を明示停止する。Lua ステートは作り直されるが
 -- 旧インスタンスの GC が遅れると二重登録 (クリック二重変換・描画多重) を
@@ -264,5 +320,7 @@ end)
 hs.shutdownCallback = function()
     if mouseSwapWatchdog then mouseSwapWatchdog:stop(); mouseSwapWatchdog = nil end
     if mouseSwapWatcher then mouseSwapWatcher:stop(); mouseSwapWatcher = nil end
+    if taskbarWatchdog then taskbarWatchdog:stop(); taskbarWatchdog = nil end
+    if ahkHeartbeatWatchdog then ahkHeartbeatWatchdog:stop(); ahkHeartbeatWatchdog = nil end
     taskbar.stop()
 end
