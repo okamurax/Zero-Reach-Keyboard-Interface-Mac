@@ -82,7 +82,7 @@ end
 -- taskbar>0 のときは自作タスクバーのカーソルガード帯(透明帯 4px)に下端が埋もれて
 -- アプリ自身のリサイズカーソル(↕)が出たり消えたりするため、さらに余白を空けて縮める。
 local TASKBAR_GAP = 8
-hs.urlevent.bind("movetodisplay", function(_, params)
+local function moveToDisplay(params)
     local idx = tonumber(params.idx) or 0
     local dockw = tonumber(params.dockw) or 0
     -- モジュール taskbar を隠さないよう別名にする (以前 local taskbar で覆っていた)
@@ -114,7 +114,8 @@ hs.urlevent.bind("movetodisplay", function(_, params)
         end
     end
     setTargetFrame(target, kind, x, y, w, h)
-end)
+end
+hs.urlevent.bind("movetodisplay", function(_, params) moveToDisplay(params) end)
 
 -- hammerspoon://prevwindow
 -- 直前まで手前にあったウィンドウへフォーカスを移す (Win風 Alt+Tab の交互トグル)。
@@ -122,7 +123,7 @@ end)
 -- [1] は現在の手前窓なので、それ以外の最初の通常ウィンドウ = 直前の窓。
 -- フォーカスは「読む」のではなく「セットする」だけなので Parallels の固着の影響を受けにくく、
 -- 毎回作り直すため状態のズレも起きない。
-hs.urlevent.bind("prevwindow", function(_, _)
+local function prevWindow()
     local cur = hs.window.focusedWindow()
     for _, w in ipairs(hs.window.orderedWindows()) do
         if w ~= cur and w:isStandard()
@@ -131,7 +132,8 @@ hs.urlevent.bind("prevwindow", function(_, _)
             return
         end
     end
-end)
+end
+hs.urlevent.bind("prevwindow", function(_, _) prevWindow() end)
 
 -- hammerspoon://minimizedisplay
 -- アクティブウィンドウ 1 つだけを minimize する。
@@ -153,7 +155,7 @@ end)
 -- hammerspoon://resizeModerate
 -- 1200x750 固定サイズ。位置は変えない
 -- リサイズ後にタイトルバー中央へカーソルを移動して、そのままドラッグで動かせるようにする
-hs.urlevent.bind("resizemoderate", function(_, _)
+local function resizeModerate()
     local winW = 1200
     local winH = 750
 
@@ -170,7 +172,43 @@ hs.urlevent.bind("resizemoderate", function(_, _)
         if p then pos = { x = p.x + winW / 2, y = p.y + 12 } end
     end
     if pos then hs.mouse.absolutePosition(pos) end
-end)
+end
+hs.urlevent.bind("resizemoderate", function(_, _) resizeModerate() end)
+
+-- Karabiner からのウィンドウ操作トリガ (F13レイヤー)。
+--
+-- 以前は Karabiner の shell_command で `open -g 'hammerspoon://...'` を叩いていたが、
+-- 1押下ごとに sh の fork + open の fork + LaunchServices への IPC が走っていた。
+-- 「同位置なら setFrame しない」ガードは Hammerspoon 側、つまりプロセス起動より後に
+-- あるため連打時の生成圧力を一切減らせておらず、VM再起動直後の F13 連打で
+-- WindowServer を固めた件の根本原因が残ったままだった。
+-- Karabiner に F16〜F20 を直接送らせ、ここで受けることでプロセス生成が丸ごと消える。
+--
+-- F16〜F20 を選んだ理由: macOS 標準ホットキー (symbolichotkeys) が F13〜F20 のうち
+-- F14/F15 のみ使用しており、F16以降は未使用。Parallels は F14系以降をグラブしない
+-- (Spotlight を Cmd+F14、AltTab を Cmd+F13 で運用できている実績と同じ理屈)。
+-- 修飾キーは付けない。Karabiner の from が optional:any で物理修飾キーを素通しするため、
+-- 修飾付きにすると Shift 等を巻き込んだ時にホットキーの完全一致から外れて不発になる。
+--
+-- URL ハンドラは残してある。手動起動用であり、karabiner.json を戻すだけで
+-- 旧方式に復帰できる (ロールバックを Karabiner 側の1ファイルに閉じ込める)。
+local TRIGGERS = {
+    { key = "f16", fn = prevWindow,      desc = "F13+V 直前のウィンドウ" },
+    { key = "f17", fn = function() moveToDisplay({ idx = "0" }) end,               desc = "F13+1 左ディスプレイ" },
+    { key = "f18", fn = function() moveToDisplay({ idx = "2" }) end,               desc = "F13+2 右ディスプレイ" },
+    { key = "f19", fn = function() moveToDisplay({ idx = "1", dockw = "61" }) end, desc = "F13+C 中央ディスプレイ" },
+    { key = "f20", fn = resizeModerate,  desc = "F13+X 1200x750" },
+}
+
+triggerHotkeys = {}
+for _, t in ipairs(TRIGGERS) do
+    local hk = hs.hotkey.bind({}, t.key, t.fn)
+    if hk then
+        triggerHotkeys[#triggerHotkeys + 1] = hk
+    else
+        hs.printf("[trigger] failed to bind %s (%s)", t.key, t.desc)
+    end
+end
 
 -- Chrome: マウスセンターボタン⇔右クリック入れ替え
 -- （トラックパッド対応のため Karabiner ではなく Hammerspoon で処理）
@@ -321,6 +359,11 @@ hs.shutdownCallback = function()
     if mouseSwapWatchdog then mouseSwapWatchdog:stop(); mouseSwapWatchdog = nil end
     if mouseSwapWatcher then mouseSwapWatcher:stop(); mouseSwapWatcher = nil end
     if taskbarWatchdog then taskbarWatchdog:stop(); taskbarWatchdog = nil end
+    -- ホットキーは OS に登録されるので、旧インスタンスが残ると二重発火する
+    if triggerHotkeys then
+        for _, hk in ipairs(triggerHotkeys) do hk:delete() end
+        triggerHotkeys = nil
+    end
     if ahkHeartbeatWatchdog then ahkHeartbeatWatchdog:stop(); ahkHeartbeatWatchdog = nil end
     taskbar.stop()
 end

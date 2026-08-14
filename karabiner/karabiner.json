@@ -301,12 +301,12 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+V = 直前のウィンドウへフォーカス (Win風Alt+Tab交互トグル、HS prevwindow)",
+                                "description": "F13+V = 直前のウィンドウへフォーカス (Win風Alt+Tab交互トグル)。F16を送出しHS側のhotkeyで受ける (旧: open -g hammerspoon://prevwindow)",
                                 "from": {
                                     "key_code": "v",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://prevwindow'", "repeat": false }],
+                                "to": [{ "key_code": "f16", "repeat": false }],
                                 "type": "basic"
                             },
                             {
@@ -317,12 +317,12 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)",
+                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F17を送出しHS側のhotkeyで受ける",
                                 "from": {
                                     "key_code": "1",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=0'", "repeat": false }],
+                                "to": [{ "key_code": "f17", "repeat": false }],
                                 "type": "basic"
                             },
                             {
@@ -333,12 +333,12 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)",
+                                "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F18を送出しHS側のhotkeyで受ける",
                                 "from": {
                                     "key_code": "2",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=2'", "repeat": false }],
+                                "to": [{ "key_code": "f18", "repeat": false }],
                                 "type": "basic"
                             },
                             {
@@ -349,12 +349,12 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+X = ウィンドウを1200x750にリサイズ・位置維持 (Mac/コヒーレンス/VM本体すべてHSで処理)",
+                                "description": "F13+X = ウィンドウを1200x750にリサイズ・位置維持 (Mac/コヒーレンス/VM本体すべてHSで処理)。F20を送出しHS側のhotkeyで受ける",
                                 "from": {
                                     "key_code": "x",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://resizemoderate'", "repeat": false }],
+                                "to": [{ "key_code": "f20", "repeat": false }],
                                 "type": "basic"
                             },
                             {
@@ -996,12 +996,12 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)",
+                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F19を送出しHS側のhotkeyで受ける",
                                 "from": {
                                     "key_code": "c",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "shell_command": "open -g 'hammerspoon://movetodisplay?idx=1&dockw=61'", "repeat": false }],
+                                "to": [{ "key_code": "f19", "repeat": false }],
                                 "type": "basic"
                             },
                             {

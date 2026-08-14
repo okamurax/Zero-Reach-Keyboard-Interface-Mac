@@ -40,6 +40,16 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - `resizemoderate` — 1200x750 固定リサイズ (位置維持)。
 - `minimizedisplay` — アクティブウィンドウを最小化。Finder のみ app:hide() に分岐 (Finder は win:minimize() で AX 列挙から落ちて自作タスクバーから消える特殊仕様のため)。現状どのキーにも未割当 (F13+F は「更新」へ変更済み)、手動 URL 起動用に残置。
 
+**Karabiner からの起動は URL ではなく F16〜F20 の送出**で行う (`hs.hotkey` で受ける)。以前は `open -g 'hammerspoon://...'` を叩いており、1押下ごとに sh と open の fork + LaunchServices への IPC が走っていた。連打時のプロセス生成が WindowServer を固める一因だったため経路ごと廃止した。F16 以降を選んだのは macOS 標準ホットキーが F14/F15 までしか使っておらず、かつ Parallels が F14 系以降をグラブしないため。修飾キーは付けない (Karabiner の `from` が物理修飾キーを素通しするため、修飾付きだとホットキーの完全一致から外れて不発になる)。URL ハンドラは手動起動用に残してあり、`karabiner.json` を戻すだけで旧方式に復帰できる。
+
+| F13レイヤー | 送出キー | 処理 |
+|---|---|---|
+| `V` | F16 | `prevwindow` |
+| `1` | F17 | `movetodisplay?idx=0` |
+| `2` | F18 | `movetodisplay?idx=2` |
+| `C` | F19 | `movetodisplay?idx=1&dockw=61` |
+| `X` | F20 | `resizemoderate` |
+
 ### 自作Win風タスクバー (`taskbar.lua`)
 画面下に貼り付くタスクバーをディスプレイごとに表示。
 
