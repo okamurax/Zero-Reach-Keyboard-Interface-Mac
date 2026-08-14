@@ -53,6 +53,17 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 ### マウスボタン入れ替え (Chrome 限定)
 中ボタンと右クリックを入れ替え。トラックパッド対応のため Karabiner ではなく Hammerspoon (`hs.eventtap`) で実装。
 
+トラックパッドの中クリックは別アプリ **MiddleClick** が供給している。その **"Tap to click" は必ず OFF** (3本指の物理押し込みを要求) にすること。ON だと3本指タップで中クリックが合成され、文字入力中に手のひらが3点触れただけで Chrome にコンテキストメニューが暴発する。macOS 側の「タップでクリック」設定とは無関係に発火するので OS 側では止められない。
+
+### 自己復旧・死活監視
+この構成は「壊れる」より「静かに効かなくなる」失敗が多いため、3つの watchdog を置いている。
+
+- **eventtap の再有効化** (1秒間隔) — メインスレッドが詰まると macOS がクリック変換のタップを無効化する。`CGEventTapIsEnabled` で検出して復帰させる。Hammerspoon 自身は自動再有効化しないため、この間隔がそのまま「無言で死んでいる最大時間」になる。
+- **タスクバーの停止検出** (30秒間隔) — windowFilter 購読・ポーリング・各 watcher には生存確認 API が無いので、機構ごとではなく「描画が更新され続けているか」(`taskbar.secondsSinceRefresh`) という結果側の一点で見る。止まっていれば watcher 一式を作り直す。
+- **VM 内 AHK の死活監視** (30秒間隔) — AHK が黙って落ちると Windows 側のトンネルが全滅する。AHK が `\\Mac\Home\.zero-reach-ahk-heartbeat` を30秒ごとに更新し、途絶を Hammerspoon が通知する。**Parallels の「Mac のフォルダを Windows と共有」が有効である必要がある**。ファイルが存在しない場合は「未配線」とみなして黙る (誤報を出さない)。判定は Parallels が前面のときだけ行うので、VM 停止中や Mac 作業中には鳴らない。
+
+AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既定 (約6秒) のままだと、AX が詰まったアプリ1つでメインスレッドが数秒止まり、上記のタップ無効化を誘発するため。
+
 ### その他
 - **Cmd+C ダブルタップ** — 500ms 以内に再度 Cmd+C で行選択+コピー。
 - **左Cmd ダブルタップ** — Cmd+Shift+V (Clipy 起動)。Parallels 前面でも Mac 側で動く。
@@ -161,6 +172,8 @@ cp -R hammerspoon/* ~/.hammerspoon/
 1. Karabiner-Elements の GUI から complex_modifications の rule を有効化
 2. Hammerspoon を再起動 (`init.lua` 自動読込)
 3. (Parallels Windows 連携を使う場合) VM 内で `karabiner/assets/ahk/parallels_window_move.ahk` を AutoHotkey v2 で実行
+
+AHK を起動したら、Mac 側に `~/.zero-reach-ahk-heartbeat` が生成されるか確認する。生成されていれば死活監視が配線できている。生成されない場合は Parallels の共有フォルダ (`\\Mac\Home`) が無効なので、AHK 自体は動くが停止を検知できない。
 
 ## 前提環境
 
