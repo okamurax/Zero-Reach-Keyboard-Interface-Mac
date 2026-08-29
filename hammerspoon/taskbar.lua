@@ -1,6 +1,7 @@
 -- 画面下に貼り付くWin風タスクバー
 -- ディスプレイごとに「そのディスプレイ上のウィンドウ一覧」を表示し、
--- 左クリックでアクティブ化、右側の×でクローズする。
+-- 左クリックでアクティブ化する。クローズ操作は持たない
+-- (ボタン内に × を置くとアプリ切替時に踏むため。理由は下の「× の廃止」参照)。
 --
 -- 設計メモ:
 --   * hs.canvas をディスプレイごとに1枚ずつ作る
@@ -23,15 +24,14 @@ M.BAR_H = BAR_H
 -- matrix API が無い環境では 0 にフォールバック (タスクバーを壊さない)。
 local CURSOR_PAD   = (hs.canvas.matrix and hs.canvas.matrix.translate) and 4 or 0
 local ITEM_W       = 210   -- ボタン幅の最大値 (ウィンドウが少ないとき)
-local MIN_ITEM_W   = 60    -- ボタン幅の最小値 (圧縮の下限。アイコン+×が押せる幅)
+local MIN_ITEM_W   = 60    -- ボタン幅の最小値 (圧縮の下限。アイコン+タイトル数文字が残る幅)
 local ITEM_GAP     = 4
 local ITEM_PAD     = 6
-local CLOSE_W      = 21
 -- アイコン一辺。macOS のアプリアイコンは画像自体に約10%の透明余白を持つ
 -- (1024px キャンバスに 824px の角丸) ため、見た目の絵柄はこの値より一回り小さい。
--- 上限は MIN_ITEM_W に縛られる: 圧縮の下限幅で × と重ならない条件が
--- 4 + ICON_W + CLOSE_W + 2 <= MIN_ITEM_W なので 32 が天井。
--- ここを 32 より大きくするなら MIN_ITEM_W も一緒に上げること。
+-- × を廃止したので「× と重ならない」制約は消えたが、上限は MIN_ITEM_W に縛られたまま。
+-- 圧縮の下限幅ではタイトルの取り分が itemW - ICON_W - 12 = 16px しか残らず、
+-- ここを大きくするとタイトルが完全に消える。上げるなら MIN_ITEM_W も一緒に上げること。
 local ICON_W       = 32
 local FONT_SIZE    = 13
 local FONT_NAME    = ".AppleSystemUIFont"
@@ -40,10 +40,9 @@ local ITEM_BG      = { red = 0.20, green = 0.20, blue = 0.20, alpha = 1.0 }
 local ITEM_BG_MIN  = { red = 0.14, green = 0.14, blue = 0.14, alpha = 1.0 }
 local TEXT_COLOR   = { white = 0.95 }
 local TEXT_MIN     = { white = 0.55 }
-local CLOSE_COLOR  = { red = 0.85, green = 0.30, blue = 0.30, alpha = 1.0 }
 
--- screenId -> { canvas, w, lastSig, lastDropped, items = { {win, x1, x2, cx1, cx2}, ... } }
---   items の x1..x2 が本体クリック領域、cx1..cx2 が × の領域 (canvas ローカル座標)
+-- screenId -> { canvas, w, lastSig, lastDropped, items = { {win, x1, x2}, ... } }
+--   items の x1..x2 がクリック領域 (canvas ローカル座標)。ボタン全幅がそのまま当たり判定。
 local bars = {}
 local refreshTimer
 local windowFilter
@@ -156,7 +155,7 @@ local function isTaskable(win)
     -- isStandard() が false になるためここまで落ちてくる。
     -- ただし macOS 自身が AXWindows に載せている実体であり、実測で
     -- id / title / frame / screen / AXRaise / AXCloseButton が全て揃っている
-    -- (= バーの描画もクリックも × も成立する) ので出す。
+    -- (= バーの描画もクリックによるアクティブ化も成立する) ので出す。
     --
     -- 条件を「role が AXWindow ですらない」に絞っているのはパレット類を巻き込まないため。
     -- Adobe 系のフローティングパレットは role=AXWindow + subrole=AXFloatingWindow なので
@@ -305,27 +304,21 @@ local function renderBar(bar, wins)
             frame = {
                 x = x + 4 + ICON_W + 4,
                 y = math.floor((BAR_H - FONT_SIZE) / 2 - 2),
-                w = math.max(0, itemW - ICON_W - CLOSE_W - 12),
+                w = math.max(0, itemW - ICON_W - 12),
                 h = FONT_SIZE + 4,
             },
         }
 
-        -- × ボタン
-        local closeX = x + itemW - CLOSE_W - 2
-        canvas[#canvas + 1] = {
-            type = "text",
-            text = "×",
-            textColor = CLOSE_COLOR,
-            textFont = FONT_NAME,
-            textSize = FONT_SIZE + 4,
-            textAlignment = "center",
-            frame = { x = closeX, y = math.floor((BAR_H - FONT_SIZE - 4) / 2 - 2), w = CLOSE_W, h = FONT_SIZE + 8 },
-        }
-
+        -- 【× の廃止】以前はここに幅 21px の × を描いてクローズさせていたが、
+        -- アプリ切替のクリックで誤って踏む事故が続いたため廃止した。
+        -- CLOSE_W が固定なのに itemW は窓数に応じて MIN_ITEM_W まで縮むので、
+        -- 窓が増えるほどボタン右端の当たり判定に占める × の割合が上がり
+        -- (210px で 10%、下限 60px では約 1/3)、狭いときほど誤爆しやすかった。
+        -- ホバー時だけ出す案もあるが、出た瞬間にポインタが載っている位置に描かれる以上
+        -- 踏む事故自体は消えないので採らない。クローズはアプリ側の ⌘W / ⌘Q を使う。
         table.insert(bar.items, {
             win = win,
-            x1 = x, x2 = x + itemW - CLOSE_W - 2,
-            cx1 = closeX, cx2 = closeX + CLOSE_W,
+            x1 = x, x2 = x + itemW,
         })
 
         x = x + itemW + ITEM_GAP
@@ -388,12 +381,7 @@ refresh = function()
                     local b = bars[id]
                     if not b then return end
                     for _, item in ipairs(b.items) do
-                        if x >= item.cx1 and x <= item.cx2 then
-                            if item.win then item.win:close() end
-                            -- windowDestroyed を待たず即再描画し、古い行への連打誤操作を防ぐ
-                            scheduleRefresh()
-                            return
-                        elseif x >= item.x1 and x <= item.x2 then
+                        if x >= item.x1 and x <= item.x2 then
                             local win = item.win
                             if not win then return end
                             local app = win:application()
