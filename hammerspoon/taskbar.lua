@@ -11,7 +11,7 @@
 
 local M = {}
 
-local BAR_H        = 38
+local BAR_H        = 43
 -- ウィンドウ配置側 (init.lua の movetodisplay) がバー高さを差し引くために公開する。
 -- ここが唯一の定義。呼び出し側や Karabiner の URL に値を複製しないこと
 -- (複製すると BAR_H 変更時に無言でウィンドウがバーに潜り込む)。
@@ -27,7 +27,12 @@ local MIN_ITEM_W   = 60    -- ボタン幅の最小値 (圧縮の下限。アイ
 local ITEM_GAP     = 4
 local ITEM_PAD     = 6
 local CLOSE_W      = 21
-local ICON_W       = 21
+-- アイコン一辺。macOS のアプリアイコンは画像自体に約10%の透明余白を持つ
+-- (1024px キャンバスに 824px の角丸) ため、見た目の絵柄はこの値より一回り小さい。
+-- 上限は MIN_ITEM_W に縛られる: 圧縮の下限幅で × と重ならない条件が
+-- 4 + ICON_W + CLOSE_W + 2 <= MIN_ITEM_W なので 32 が天井。
+-- ここを 32 より大きくするなら MIN_ITEM_W も一緒に上げること。
+local ICON_W       = 32
 local FONT_SIZE    = 13
 local FONT_NAME    = ".AppleSystemUIFont"
 local BG_COLOR     = { red = 0.10, green = 0.10, blue = 0.10, alpha = 0.92 }
@@ -146,6 +151,21 @@ local function isTaskable(win)
         local t = win:title()
         if t and t ~= "" then return true end
     end
+    -- Adobe Bridge のように、AX 的な標準ウィンドウを作らないアプリへの特例。
+    -- Bridge のメイン窓は role=AXLayoutArea / subrole=AXFloatingWindow で、
+    -- isStandard() が false になるためここまで落ちてくる。
+    -- ただし macOS 自身が AXWindows に載せている実体であり、実測で
+    -- id / title / frame / screen / AXRaise / AXCloseButton が全て揃っている
+    -- (= バーの描画もクリックも × も成立する) ので出す。
+    --
+    -- 条件を「role が AXWindow ですらない」に絞っているのはパレット類を巻き込まないため。
+    -- Adobe 系のフローティングパレットは role=AXWindow + subrole=AXFloatingWindow なので
+    -- この条件には該当せず、従来通り除外される。無題の要素も除くので title は必須。
+    local role = win:role()
+    if role and role ~= "AXWindow" then
+        local t = win:title()
+        if t and t ~= "" then return true end
+    end
     return false
 end
 
@@ -163,9 +183,24 @@ local function groupWindowsByScreen()
         end
     end
     -- allWindows() は z-order (最近フォーカスが先頭) を返すため、フォーカスのたびに
-    -- 並びが変わりアクティブ窓が左へ飛ぶ。ウィンドウID (生成順で安定) で固定する。
+    -- 並びが変わりアクティブ窓が左へ飛ぶ。アプリ名 → ウィンドウID の2段で固定する。
+    --
+    -- 第1キーをアプリ名にしているのは、同じアプリの窓 (VSCode を2つ開いた等) を
+    -- 隣り合わせて探しやすくするため。第2キーのウィンドウIDは生成順で安定なので、
+    -- 同じアプリ内の並びもフォーカスでは動かない。
+    -- キーは窓ごとに1回だけ作る。比較関数の中で app:name() を呼ぶと
+    -- O(n log n) 回の AX 問い合わせになるため (デコレート-ソート)。
     for _, g in pairs(map) do
-        table.sort(g.wins, function(a, b) return a:id() < b:id() end)
+        local sortKey = {}
+        for _, win in ipairs(g.wins) do
+            local app = win:application()
+            sortKey[win:id()] = (app and app:name()) or ""
+        end
+        table.sort(g.wins, function(a, b)
+            local ka, kb = sortKey[a:id()], sortKey[b:id()]
+            if ka ~= kb then return ka < kb end
+            return a:id() < b:id()
+        end)
     end
     return map
 end
