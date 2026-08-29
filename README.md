@@ -70,7 +70,9 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 
 - **eventtap の再有効化** (1秒間隔) — メインスレッドが詰まると macOS がクリック変換のタップを無効化する。`CGEventTapIsEnabled` で検出して復帰させる。Hammerspoon 自身は自動再有効化しないため、この間隔がそのまま「無言で死んでいる最大時間」になる。
 - **タスクバーの停止検出** (30秒間隔) — windowFilter 購読・ポーリング・各 watcher には生存確認 API が無いので、機構ごとではなく「描画が更新され続けているか」(`taskbar.secondsSinceRefresh`) という結果側の一点で見る。止まっていれば watcher 一式を作り直す。
-- **VM 内 AHK の死活監視** (30秒間隔) — AHK が黙って落ちると Windows 側のトンネルが全滅する。AHK が `\\Mac\Home\.zero-reach-ahk-heartbeat` を30秒ごとに更新し、途絶を Hammerspoon が通知する。**Parallels の「Mac のフォルダを Windows と共有」が有効である必要がある**。ファイルが存在しない場合は「未配線」とみなして黙る (誤報を出さない)。判定は Parallels が前面のときだけ行うので、VM 停止中や Mac 作業中には鳴らない。
+- **VM 内 AHK の死活監視** (30秒間隔) — AHK が黙って落ちると Windows 側のトンネルが全滅する。AHK が Mac のホーム直下 `~/.zero-reach-ahk-heartbeat` を共有フォルダ経由で30秒ごとに更新し、途絶を Hammerspoon が通知する。**Parallels の「Mac を Windows と共有」が有効である必要がある**。共有名は設定で変わる (「すべてのディスク」= `\\Mac\AllFiles\Users\<Macユーザー名>\`、「ホームフォルダーのみ」= `\\Mac\Home\`) ため、AHK 側は両方を順に試す。
+  - 通知は2種類ある。**「AHK が停止しています」**= ハートビートが届いていたのに途絶えた。**「AHK 死活監視が未配線です」**= 一度も届いていない (旧版 AHK、または共有フォルダから書けていない)。判定はどちらも Parallels が前面のときだけ行うので、VM 停止中や Mac 作業中には鳴らない。
+  - 以前は「ファイルが無ければ黙る」実装で、`\\Mac\Home` 決め打ちと噛み合わず**導入以来一度も動いていなかった** (2026-08-28 判明)。未配線を黙殺しないのはこの再発防止のため。
 
 AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既定 (約6秒) のままだと、AX が詰まったアプリ1つでメインスレッドが数秒止まり、上記のタップ無効化を誘発するため。
 
@@ -183,7 +185,7 @@ cp -R hammerspoon/* ~/.hammerspoon/
 2. Hammerspoon を再起動 (`init.lua` 自動読込)
 3. (Parallels Windows 連携を使う場合) VM 内で `karabiner/assets/ahk/parallels_window_move.ahk` を AutoHotkey v2 で実行
 
-AHK を起動したら、Mac 側に `~/.zero-reach-ahk-heartbeat` が生成されるか確認する。生成されていれば死活監視が配線できている。生成されない場合は Parallels の共有フォルダ (`\\Mac\Home`) が無効なので、AHK 自体は動くが停止を検知できない。
+AHK を起動したら、Mac 側に `~/.zero-reach-ahk-heartbeat` が生成されるか確認する (30秒待たずに起動直後に1回書く)。中身に書き込みに使った共有パスが入っているので `cat ~/.zero-reach-ahk-heartbeat` でどの経路で届いたか判る。生成されない場合は Parallels の「Mac を Windows と共有」が無効か共有名が候補と違うので、AHK 自体は動くが停止を検知できない。この状態は放置すると気付けないため、Hammerspoon が起動5分後に「未配線」通知を出す。
 
 ## 前提環境
 

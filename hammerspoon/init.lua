@@ -314,16 +314,27 @@ end)
 -- Parallels VM 内 AHK の死活監視。
 -- AHK が黙って落ちると Windows 側のトンネル (F13+Q/W/A/S、IME ON/OFF 等) が
 -- 全滅するが、これまで気づく手段が「Windowsだけ効かない」という体感しか無かった。
--- AHK 側が \\Mac\Home\.zero-reach-ahk-heartbeat を30秒ごとに書くので、
--- その更新が途絶えていたら通知する。
+-- AHK 側が Parallels の共有フォルダ経由で $HOME/.zero-reach-ahk-heartbeat を
+-- 30秒ごとに書くので、その更新が途絶えていたら通知する。
 --
--- 誤報を出さない条件を2つ課している:
---   * ファイルが存在しない = ハートビート未配線 (共有フォルダ無効/旧AHK) とみなし黙る
+-- 「ファイルが存在しない」を無条件に黙殺してはいけない。旧実装はそうしており、
+-- 実構成の共有名が \\Mac\AllFiles で AHK 側の書き込み先 \\Mac\Home が存在しなかったため、
+-- ファイルが一度も現れず監視機構ごと無言で無効化されていた
+-- (2026-08-28 判明。導入以来一度も動いていなかった)。
+-- そこで「一度も見えたことが無い」= 配線不良 と「見えていたのに止まった」= AHK停止 を
+-- 区別し、前者も別文言で通知する。黙る条件を残すと同じ穴が再発する。
+--
+-- 誤報を出さない条件:
 --   * Parallels が前面のときだけ判定する。VM 停止中やMac作業中に鳴らさないため
+--   * 未配線の判定には HS 起動からの猶予を設ける。VM 起動待ちで鳴らさないため
 -- 復帰したらフラグを戻し、1回の停止につき通知は1度だけにする。
 local AHK_HEARTBEAT = os.getenv("HOME") .. "/.zero-reach-ahk-heartbeat"
 local AHK_STALE_SEC = 90       -- AHK側の書き込み間隔30秒の3回分
-local ahkWarned = false
+local AHK_UNWIRED_GRACE_SEC = 300   -- HS起動からこの秒数はファイル未出現でも黙る
+local ahkStartedAt = os.time()
+local ahkLastSeenAt = nil      -- ハートビートを最後に観測できた実時刻。nil = 一度も無し
+local ahkWarned = false        -- 停止通知の重複抑止
+local ahkUnwiredWarned = false -- 未配線通知の重複抑止
 
 local function parallelsIsFrontmost()
     local app = hs.application.frontmostApplication()
@@ -333,22 +344,52 @@ local function parallelsIsFrontmost()
         or bid:find("^com%.parallels%.winapp%.") ~= nil
 end
 
-ahkHeartbeatWatchdog = hs.timer.doEvery(30, function()
-    local mtime = hs.fs.attributes(AHK_HEARTBEAT, "modification")
-    if not mtime then return end   -- 未配線: 黙る
-
-    local age = os.time() - mtime
-    if age <= AHK_STALE_SEC then
-        ahkWarned = false
-        return
-    end
+-- AHK 停止として1度だけ通知する。検出経路が2つ (更新が古い / ファイルが消えたまま)
+-- あるので、文言と抑止フラグをここに集約する。
+local function warnAhkDead(age)
     if ahkWarned or not parallelsIsFrontmost() then return end
-
     ahkWarned = true
     hs.printf("[ahk] heartbeat stale for %ds; AHK in the VM is likely dead", age)
     hs.notify.show("AHK が停止しています",
         "Parallels 内の Windows 側トンネルが全滅しています",
         string.format("最終応答から %d 秒。VM 内で parallels_window_move.ahk を再実行してください", age))
+end
+
+ahkHeartbeatWatchdog = hs.timer.doEvery(30, function()
+    local mtime = hs.fs.attributes(AHK_HEARTBEAT, "modification")
+
+    if mtime then
+        ahkLastSeenAt = os.time()
+        ahkUnwiredWarned = false
+        local age = ahkLastSeenAt - mtime
+        if age <= AHK_STALE_SEC then
+            ahkWarned = false
+            return
+        end
+        warnAhkDead(age)
+        return
+    end
+
+    -- 以下はファイルが存在しないケース。
+    if ahkLastSeenAt then
+        -- 以前は見えていた。AHK は書く前に FileDelete するので一瞬消えるのは正常。
+        -- 消えたまま戻らないのは delete 直後に落ちた場合なので停止として扱う。
+        local gone = os.time() - ahkLastSeenAt
+        if gone > AHK_STALE_SEC then warnAhkDead(gone) end
+        return
+    end
+
+    -- 一度も観測できていない = 配線不良。共有フォルダ無効、共有名の不一致、
+    -- あるいはハートビート未対応の旧 AHK が動いている。
+    if ahkUnwiredWarned then return end
+    if os.time() - ahkStartedAt < AHK_UNWIRED_GRACE_SEC then return end
+    if not parallelsIsFrontmost() then return end
+
+    ahkUnwiredWarned = true
+    hs.printf("[ahk] heartbeat has never appeared at %s; monitoring is unwired", AHK_HEARTBEAT)
+    hs.notify.show("AHK 死活監視が未配線です",
+        "ハートビートが一度も届いていません",
+        "VM 内の AHK が旧版か、共有フォルダから Mac のホームへ書けていません")
 end)
 
 -- hammerspoon://reload (= hs.reload) や終了の前に OS リソースを握る
