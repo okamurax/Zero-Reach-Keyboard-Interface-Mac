@@ -38,8 +38,18 @@ local FONT_NAME    = ".AppleSystemUIFont"
 local BG_COLOR     = { red = 0.10, green = 0.10, blue = 0.10, alpha = 0.92 }
 local ITEM_BG      = { red = 0.20, green = 0.20, blue = 0.20, alpha = 1.0 }
 local ITEM_BG_MIN  = { red = 0.14, green = 0.14, blue = 0.14, alpha = 1.0 }
-local TEXT_COLOR   = { white = 0.95 }
+-- 純白 (0.95) は暗い背景で滲んで見えるので、VSCode Dark+ の editor.foreground
+-- (#D4D4D4 = 212/255 ≒ 0.83) に合わせて少しだけグレーを混ぜている。
+local TEXT_COLOR   = { white = 0.83 }
 local TEXT_MIN     = { white = 0.55 }
+
+-- バーに出さないアプリ (bundleID)。
+-- 常駐して画面端に貼り付くタイプのアプリは、窓としては標準扱い (isStandard() が true)
+-- なので snapshotWindow の一般則では落とせない。ここで名指しで除外する。
+local EXCLUDED_BUNDLES = {
+    ["org.hammerspoon.Hammerspoon"] = true,  -- 自分自身 (タスクバーの canvas を含む)
+    ["com.apptorium.SideNotes"]     = true,  -- 常時表示のサイドメモ。切替対象にならない
+}
 
 -- screenId -> { canvas, w, lastSig, lastDropped, items = { {win, x1, x2}, ... } }
 --   items の x1..x2 がクリック領域 (canvas ローカル座標)。ボタン全幅がそのまま当たり判定。
@@ -120,6 +130,21 @@ local function currentScreenSig()
     return table.concat(ids, ",")
 end
 
+-- テキスト幅の測定専用 canvas (表示しない)。
+-- minimumTextSize は canvas 要素のフォント属性を使って測るので、実際に描くのと
+-- 同じ FONT_NAME / FONT_SIZE を持つ要素をひとつだけ載せておく。
+-- 描画用の bar.canvas を使わないのは、renderBar が replaceElements で要素を作り直す
+-- 途中で測る必要があり、測定対象の要素番号が描画順に依存してしまうため。
+local measureCanvas
+local function ensureMeasureCanvas()
+    if measureCanvas then return measureCanvas end
+    local c = hs.canvas.new({ x = 0, y = 0, w = 1, h = 1 })
+    if not c then return nil end   -- 測れない環境では折り返し判定を諦めて1行に倒す
+    c[1] = { type = "text", text = "", textFont = FONT_NAME, textSize = FONT_SIZE }
+    measureCanvas = c
+    return measureCanvas
+end
+
 -- bundleID -> hs.image。成功時のみキャッシュする。
 -- 取得失敗(アプリ起動直後でアイコン未準備のとき等)はキャッシュせず、
 -- 次回 render で再試行する。失敗を永続キャッシュするとアイコンが
@@ -135,50 +160,86 @@ local function getAppIcon(bid)
     return img
 end
 
--- ウィンドウがタスクバーに出すべきものか
--- 最小化中もタスクバーに残す (クリックで復元するWin風挙動のため)
--- Hammerspoon自身(canvas)は除外
-local function isTaskable(win)
-    if not win then return false end
+-- ウィンドウ1枚ぶんの属性を1回だけ読み取り、素の Lua テーブルに写して返す。
+-- 出すべきでない窓は nil を返す (旧 isTaskable の判定をここに統合)。
+--
+-- なぜスナップショットにするか:
+--   AX の問い合わせは1回ごとに hs.window.timeout(1) の上限まで待つ可能性があり、
+--   詰まったアプリが1つでもいると「往復回数 × 最大1秒」が主スレッドの停止時間に
+--   なる。以前は同じ属性を判定・ソート・描画で別々に引いており、application() は
+--   窓あたり3回、id() に至ってはソート比較関数の中から O(n log n) 回呼ばれていた。
+--   1パスに畳むことで往復回数を窓数に比例する分だけに抑える。
+--
+-- これは refresh 1回ごとに作って捨てる使い捨ての値であって、永続キャッシュでは
+-- ないこと。窓の状態を跨いで持つと「閉じたのに消えない窓」のような腐り方をする。
+local function snapshotWindow(win)
     local app = win:application()
-    if not app then return false end
-    if app:bundleID() == "org.hammerspoon.Hammerspoon" then return false end
-    if win:isStandard() then return true end
-    -- Finder は app:hide() 中に win:isStandard() が false に変わるため特例で許可。
-    -- 無題ウィンドウ (デスクトップ用) は除外したいので title 必須。
-    if app:bundleID() == "com.apple.finder" and app:isHidden() then
-        local t = win:title()
-        if t and t ~= "" then return true end
+    if not app then return nil end
+    local bid = app:bundleID()
+    if bid and EXCLUDED_BUNDLES[bid] then return nil end
+
+    local isHidden = app:isHidden() or false
+    local title = win:title() or ""
+
+    -- 出す/出さないの判定。最小化中もタスクバーに残す
+    -- (クリックで復元する Win 風挙動のため)。
+    local taskable = win:isStandard()
+    if not taskable and bid == "com.apple.finder" and isHidden then
+        -- Finder は app:hide() 中に win:isStandard() が false に変わるため特例で許可。
+        -- 無題ウィンドウ (デスクトップ用) は除外したいので title 必須。
+        taskable = (title ~= "")
     end
-    -- Adobe Bridge のように、AX 的な標準ウィンドウを作らないアプリへの特例。
-    -- Bridge のメイン窓は role=AXLayoutArea / subrole=AXFloatingWindow で、
-    -- isStandard() が false になるためここまで落ちてくる。
-    -- ただし macOS 自身が AXWindows に載せている実体であり、実測で
-    -- id / title / frame / screen / AXRaise / AXCloseButton が全て揃っている
-    -- (= バーの描画もクリックによるアクティブ化も成立する) ので出す。
-    --
-    -- 条件を「role が AXWindow ですらない」に絞っているのはパレット類を巻き込まないため。
-    -- Adobe 系のフローティングパレットは role=AXWindow + subrole=AXFloatingWindow なので
-    -- この条件には該当せず、従来通り除外される。無題の要素も除くので title は必須。
-    local role = win:role()
-    if role and role ~= "AXWindow" then
-        local t = win:title()
-        if t and t ~= "" then return true end
+    if not taskable then
+        -- Adobe Bridge のように、AX 的な標準ウィンドウを作らないアプリへの特例。
+        -- Bridge のメイン窓は role=AXLayoutArea / subrole=AXFloatingWindow で、
+        -- isStandard() が false になるためここまで落ちてくる。
+        -- ただし macOS 自身が AXWindows に載せている実体であり、実測で
+        -- id / title / frame / screen / AXRaise / AXCloseButton が全て揃っている
+        -- (= バーの描画もクリックによるアクティブ化も成立する) ので出す。
+        --
+        -- 条件を「role が AXWindow ですらない」に絞っているのはパレット類を巻き込まないため。
+        -- Adobe 系のフローティングパレットは role=AXWindow + subrole=AXFloatingWindow なので
+        -- この条件には該当せず、従来通り除外される。無題の要素も除くので title は必須。
+        -- role() は標準ウィンドウでは不要なので、ここまで落ちた窓だけで引く。
+        local role = win:role()
+        taskable = (role ~= nil and role ~= "AXWindow" and title ~= "")
     end
-    return false
+    if not taskable then return nil end
+
+    local screen = win:screen()
+    if not screen then return nil end
+
+    return {
+        win      = win,
+        -- id は signature とソートの第2キーに使う。nil を返す窓が居ても
+        -- テーブル添字エラーで refresh 全体を落とさないよう 0 に倒す
+        -- (順序が多少乱れるだけで、描画もクリックも成立する)。
+        id       = win:id() or 0,
+        screen   = screen,
+        screenId = screen:id(),
+        appName  = app:name() or "",
+        bundle   = bid,
+        title    = title,
+        -- Finder の app:hide() もグレーアウト扱い (個別 minimize は出来ないため)
+        isMin    = win:isMinimized() or isHidden,
+    }
 end
 
 -- ディスプレイ毎にウィンドウをグループ化
 local function groupWindowsByScreen()
     local map = {}
     for _, win in ipairs(hs.window.allWindows()) do
-        if isTaskable(win) then
-            local s = win:screen()
-            if s then
-                local id = s:id()
-                map[id] = map[id] or { screen = s, wins = {} }
-                table.insert(map[id].wins, win)
-            end
+        -- 窓1枚の AX 例外で refresh 全体を落とさない。終了しかけの窓を掴むのは
+        -- 日常的に起きるが、そこで抜けるとバーが丸ごと更新されなくなり、復旧は
+        -- init.lua の30秒ウォッチドッグ待ちになる。読めない窓だけ捨てて続行し、
+        -- 次の refresh で拾い直す (AXタイムアウト時と同じ「その窓が一瞬消える」で済ませる)。
+        local ok, e = pcall(snapshotWindow, win)
+        if not ok then
+            hs.printf("[taskbar] window skipped: %s", tostring(e))
+        elseif e then
+            local id = e.screenId
+            map[id] = map[id] or { screen = e.screen, wins = {} }
+            table.insert(map[id].wins, e)
         end
     end
     -- allWindows() は z-order (最近フォーカスが先頭) を返すため、フォーカスのたびに
@@ -187,24 +248,20 @@ local function groupWindowsByScreen()
     -- 第1キーをアプリ名にしているのは、同じアプリの窓 (VSCode を2つ開いた等) を
     -- 隣り合わせて探しやすくするため。第2キーのウィンドウIDは生成順で安定なので、
     -- 同じアプリ内の並びもフォーカスでは動かない。
-    -- キーは窓ごとに1回だけ作る。比較関数の中で app:name() を呼ぶと
-    -- O(n log n) 回の AX 問い合わせになるため (デコレート-ソート)。
+    -- 比較関数は snapshot の素の値だけを見る。ここで win:id() や app:name() を
+    -- 呼ぶと O(n log n) 回の AX 問い合わせになる (デコレート-ソート)。
     for _, g in pairs(map) do
-        local sortKey = {}
-        for _, win in ipairs(g.wins) do
-            local app = win:application()
-            sortKey[win:id()] = (app and app:name()) or ""
-        end
         table.sort(g.wins, function(a, b)
-            local ka, kb = sortKey[a:id()], sortKey[b:id()]
-            if ka ~= kb then return ka < kb end
-            return a:id() < b:id()
+            if a.appName ~= b.appName then return a.appName < b.appName end
+            return a.id < b.id
         end)
     end
     return map
 end
 
 -- 1枚のバーを描画
+-- wins は snapshotWindow が作った素のテーブルの配列。ここでは AX を一切引かない
+-- (引くと refresh 1回の AX 往復が窓数ぶん増え、詰まったアプリの待ち時間が積み上がる)。
 -- 表示状態が前回と完全一致なら canvas を触らずに早期return (差分render)。
 local function renderBar(bar, wins)
     -- ウィンドウ数に応じてボタン幅を圧縮し、できるだけ全ウィンドウを収める
@@ -220,20 +277,17 @@ local function renderBar(bar, wins)
     -- 表示対象だけ先に確定 (signature と描画ループで共有)
     local visible = {}
     local x0 = ITEM_PAD
-    for _, win in ipairs(wins) do
+    for _, e in ipairs(wins) do
         if x0 + itemW > bar.w - ITEM_PAD then break end
-        local app = win:application()
-        local title = win:title() or ""
-        if title == "" and app then title = app:name() end
+        -- 無題ウィンドウはアプリ名で代用する
+        local title = (e.title ~= "") and e.title or e.appName
         visible[#visible + 1] = {
-            win = win,
-            id = win:id(),
+            win = e.win,
+            id = e.id,
             title = title,
-            -- Finder の app:hide() もグレーアウト扱い (個別 minimize は出来ないため)
-            isMin = win:isMinimized() or (app and app:isHidden()) or false,
-            app = app,
+            isMin = e.isMin,
             -- 取得失敗 (起動直後) は nil。後から取得できたら signature が変わり再描画される
-            icon = app and getAppIcon(app:bundleID()) or nil,
+            icon = getAppIcon(e.bundle),
         }
         x0 = x0 + itemW + ITEM_GAP
     end
@@ -293,19 +347,39 @@ local function renderBar(bar, wins)
             }
         end
 
-        -- タイトル
+        -- タイトル。1行に収まらないものは2行に折り返す (… による省略はしない)。
+        -- 「切れていることが分かる」より「読める文字数」を優先する。… は1文字分の幅を
+        -- 食うだけで、読めない部分の情報は結局得られないため。
+        --
+        -- charWrap を使う理由: 日本語には単語境界が無く wordWrap だと英字部分だけが
+        -- 手前で折れて1行目の右に余白ができる。文字単位で詰めた方が字数が稼げる。
+        -- なお truncateTail は枠を高くしても1行のままなので、折り返しと … は両立しない
+        -- (実測確認済み)。
+        --
+        -- 高さは measureCanvas の実測で切り替える。canvas には垂直センタリングが無く、
+        -- 2行分の枠に1行のタイトルを入れると上寄せになってアイコンと揃わないため、
+        -- 1行に収まるなら1行分の枠を使い、どちらの場合もバー高の中央へ置く。
+        local titleW = math.max(0, itemW - ICON_W - 12)
+        local mc = ensureMeasureCanvas()
+        local size = mc and titleW > 0 and mc:minimumTextSize(1, title) or nil
+        local lineH = (size and size.h) or (FONT_SIZE + 3)
+        -- minimumTextSize は約4pt の誤差があるとドキュメントに明記されている。
+        -- 1行と誤判定すると charWrap では2行目が枠外に出て無言で消えるので、
+        -- 判定はその誤差分だけ折り返し側へ倒しておく。
+        local wrapped = (size ~= nil) and (size.w > titleW - 4)
+        local titleH = wrapped and (lineH * 2) or lineH
         canvas[#canvas + 1] = {
             type = "text",
             text = title,
             textColor = isMin and TEXT_MIN or TEXT_COLOR,
             textFont = FONT_NAME,
             textSize = FONT_SIZE,
-            textLineBreak = "truncateTail",
+            textLineBreak = "charWrap",
             frame = {
                 x = x + 4 + ICON_W + 4,
-                y = math.floor((BAR_H - FONT_SIZE) / 2 - 2),
-                w = math.max(0, itemW - ICON_W - 12),
-                h = FONT_SIZE + 4,
+                y = math.floor((BAR_H - titleH) / 2),
+                w = titleW,
+                h = titleH,
             },
         }
 
@@ -504,6 +578,7 @@ function M.stop()
         bar.canvas:delete()
         bars[id] = nil
     end
+    if measureCanvas then measureCanvas:delete(); measureCanvas = nil end
 end
 
 return M
