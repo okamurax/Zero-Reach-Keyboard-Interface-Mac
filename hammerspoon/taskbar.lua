@@ -43,6 +43,25 @@ local ITEM_BG_MIN  = { red = 0.14, green = 0.14, blue = 0.14, alpha = 1.0 }
 local TEXT_COLOR   = { white = 0.83 }
 local TEXT_MIN     = { white = 0.55 }
 
+-- ボタンのラベルを「アプリ名 + ウィンドウタイトル」にするか (例: "VSCode  taskbar.lua")。
+-- どの窓がどのアプリのものか、アイコンを見分けなくても読めるようにするための実験スイッチ。
+-- false に戻せば従来どおりウィンドウタイトルだけになる。
+-- 幅は増えないので、その分だけタイトル本体の取り分が減る (2行折り返しに回る) ことに注意。
+local SHOW_APP_NAME = true
+local APP_NAME_SEP  = "  "
+
+-- 表示用の短縮名 (実際のアプリ名 -> バーに出す名前)。
+-- 正式名は長くボタン幅を食うだけなので、頻用アプリだけ縮める。
+-- 未登録のアプリはアプリ名がそのまま出る。
+local APP_NAME_ALIAS = {
+    ["Code"]                     = "VSCode",
+    ["リモート デスクトップ接続"] = "RDP",
+    ["Google Chrome"]            = "Chrome",
+    ["Microsoft Edge"]           = "Edge",
+    ["Adobe Bridge 2026"]        = "Bridge",
+    ["Directory Opus"]           = "DOpus",
+}
+
 -- バーに出さないアプリ (bundleID)。
 -- 常駐して画面端に貼り付くタイプのアプリは、窓としては標準扱い (isStandard() が true)
 -- なので snapshotWindow の一般則では落とせない。ここで名指しで除外する。
@@ -158,6 +177,98 @@ local function getAppIcon(bid)
     local img = hs.image.imageFromAppBundle(bid)
     if img then iconCache[bid] = img end
     return img
+end
+
+-- 分解形(NFD)の仮名を合成形(NFC)へ直すための表。
+-- Parallels のコヒーレンス窓は AX 経由のアプリ名を NFD で返す。"デ" が
+-- "テ"+U+3099 の2文字になるため、NFC で書かれたウィンドウタイトルや下の別名表とは
+-- 見た目が同じでもバイト列が一致せず、比較が無言で外れる。
+-- キーの基底文字は結合記号を持たない文字なので、エディタが正規化しても壊れない。
+local KANA_V  = "\227\130\153"   -- U+3099 結合濁点
+local KANA_SV = "\227\130\154"   -- U+309A 結合半濁点
+local KANA_COMPOSE = {
+    -- 濁点
+    ["う"..KANA_V] = "ゔ", ["か"..KANA_V] = "が", ["き"..KANA_V] = "ぎ", ["く"..KANA_V] = "ぐ", ["け"..KANA_V] = "げ", ["こ"..KANA_V] = "ご",
+    ["さ"..KANA_V] = "ざ", ["し"..KANA_V] = "じ", ["す"..KANA_V] = "ず", ["せ"..KANA_V] = "ぜ", ["そ"..KANA_V] = "ぞ", ["た"..KANA_V] = "だ",
+    ["ち"..KANA_V] = "ぢ", ["つ"..KANA_V] = "づ", ["て"..KANA_V] = "で", ["と"..KANA_V] = "ど", ["は"..KANA_V] = "ば", ["ひ"..KANA_V] = "び",
+    ["ふ"..KANA_V] = "ぶ", ["へ"..KANA_V] = "べ", ["ほ"..KANA_V] = "ぼ", ["ゝ"..KANA_V] = "ゞ", ["ウ"..KANA_V] = "ヴ", ["カ"..KANA_V] = "ガ",
+    ["キ"..KANA_V] = "ギ", ["ク"..KANA_V] = "グ", ["ケ"..KANA_V] = "ゲ", ["コ"..KANA_V] = "ゴ", ["サ"..KANA_V] = "ザ", ["シ"..KANA_V] = "ジ",
+    ["ス"..KANA_V] = "ズ", ["セ"..KANA_V] = "ゼ", ["ソ"..KANA_V] = "ゾ", ["タ"..KANA_V] = "ダ", ["チ"..KANA_V] = "ヂ", ["ツ"..KANA_V] = "ヅ",
+    ["テ"..KANA_V] = "デ", ["ト"..KANA_V] = "ド", ["ハ"..KANA_V] = "バ", ["ヒ"..KANA_V] = "ビ", ["フ"..KANA_V] = "ブ", ["ヘ"..KANA_V] = "ベ",
+    ["ホ"..KANA_V] = "ボ", ["ワ"..KANA_V] = "ヷ", ["ヰ"..KANA_V] = "ヸ", ["ヱ"..KANA_V] = "ヹ", ["ヲ"..KANA_V] = "ヺ", ["ヽ"..KANA_V] = "ヾ",
+    -- 半濁点
+    ["は"..KANA_SV] = "ぱ", ["ひ"..KANA_SV] = "ぴ", ["ふ"..KANA_SV] = "ぷ", ["へ"..KANA_SV] = "ぺ", ["ほ"..KANA_SV] = "ぽ", ["ハ"..KANA_SV] = "パ",
+    ["ヒ"..KANA_SV] = "ピ", ["フ"..KANA_SV] = "プ", ["ヘ"..KANA_SV] = "ペ", ["ホ"..KANA_SV] = "ポ",
+}
+
+-- タイトル比較用の正規化。前後の空白を落とし、ゼロ幅文字を除去する。
+-- Parallels のコヒーレンス窓はタイトル末尾に空白を付ける。Edge はアプリ名の途中
+-- (Microsoft と Edge の間) に U+200B を挟むため、素の比較ではアプリ名と一致しない。
+local function normalize(s)
+    -- 先に NFD の仮名を合成する (3バイトの基底文字 + 3バイトの結合記号)。
+    s = s:gsub("([\226-\239][\128-\191][\128-\191])(\227\130[\153\154])",
+        function(base, mark) return KANA_COMPOSE[base .. mark] end)
+    -- Lua の %s は ASCII 空白しか見ないので、非 ASCII の空白は先に普通の空白へ寄せる。
+    s = s:gsub("\194\160", " ")       -- U+00A0 NO-BREAK SPACE
+    s = s:gsub("\227\128\128", " ")  -- U+3000 IDEOGRAPHIC SPACE (全角空白)
+    s = s:gsub("\226\128\139", "")   -- U+200B ZERO WIDTH SPACE
+    s = s:gsub("\239\187\191", "")   -- U+FEFF ZERO WIDTH NO-BREAK SPACE
+    -- Parallels のコヒーレンス窓はタイトル末尾に NUL を付ける (空白ではないので
+    -- %s のトリムでは落ちず、アプリ名の段との比較が無言で外れる)。制御文字ごと除去する。
+    s = s:gsub("%c", "")
+    s = s:gsub("^%s+", "")
+    s = s:gsub("%s+$", "")
+    return s
+end
+
+-- " - " 区切りのタイトルから、アプリ名そのものの段を取り除く。
+--   "192.168.1.176 - リモート デスクトップ接続"        -> "192.168.1.176"
+--   "... - YouTube - Google Chrome - 章吾 (appbay.org)" -> "... - YouTube - 章吾 (appbay.org)"
+-- アプリ名を前置する以上、タイトル内の同じ名前は情報量ゼロで幅を食うだけなので落とす。
+--
+-- 段がアプリ名の前方一致でも落とす。Adobe Bridge はアプリ名が "Adobe Bridge 2026" なのに
+-- タイトルの段は "Adobe Bridge" で、完全一致だと取りこぼすため。ただし短い段まで巻き込むと
+-- 無関係な語を消しかねないので、4文字以上の段に限る。
+local function stripAppSegment(title, appName)
+    if appName == "" then return title end
+    local kept, pos = {}, 1
+    while true do
+        local a, b = title:find(" - ", pos, true)
+        local seg = normalize(a and title:sub(pos, a - 1) or title:sub(pos))
+        local isAppName = (seg == appName)
+            -- 段がアプリ名の一部 ("Adobe Bridge" ⊂ "Adobe Bridge 2026")
+            or (#seg >= 4 and appName:sub(1, #seg) == seg)
+            -- 段がアプリ名+付加情報 ("Obsidian 1.13.7")。境界を空白に限って
+            -- "Google Chrome の使い方" のような本文を巻き込みにくくする。
+            or (#appName >= 4 and seg:sub(1, #appName) == appName
+                and seg:sub(#appName + 1, #appName + 1) == " ")
+        if seg ~= "" and not isAppName then kept[#kept + 1] = seg end
+        if not a then break end
+        pos = b + 1
+    end
+    return table.concat(kept, " - ")
+end
+
+-- ボタンに出す1行ぶんのラベル。
+local function labelFor(e)
+    local appName = normalize(e.appName)
+    if not SHOW_APP_NAME then
+        -- 従来動作: ウィンドウタイトルのみ。無題ウィンドウだけアプリ名で代用する。
+        local t = normalize(e.title)
+        return (t ~= "") and t or appName
+    end
+    local shown = APP_NAME_ALIAS[appName] or appName
+    local title = stripAppSegment(normalize(e.title), appName)
+    -- " - " 区切りを持たず "アプリ名 サブタイトル" と続くだけの窓 (4K Video Downloader+ 等)。
+    -- 段に割れないので stripAppSegment では落ちない。先頭のアプリ名だけ削る。
+    if appName ~= "" and title:sub(1, #appName) == appName then
+        local rest = normalize(title:sub(#appName + 1))
+        if rest ~= "" then title = rest end
+    end
+    -- 無題ウィンドウ、およびタイトルがアプリ名だけだった窓はアプリ名のみになる
+    if title == "" then return shown end
+    if shown == "" then return title end
+    return shown .. APP_NAME_SEP .. title
 end
 
 -- ウィンドウ1枚ぶんの属性を1回だけ読み取り、素の Lua テーブルに写して返す。
@@ -279,8 +390,7 @@ local function renderBar(bar, wins)
     local x0 = ITEM_PAD
     for _, e in ipairs(wins) do
         if x0 + itemW > bar.w - ITEM_PAD then break end
-        -- 無題ウィンドウはアプリ名で代用する
-        local title = (e.title ~= "") and e.title or e.appName
+        local title = labelFor(e)
         visible[#visible + 1] = {
             win = e.win,
             id = e.id,
