@@ -33,7 +33,9 @@ local ITEM_PAD     = 6
 -- 圧縮の下限幅ではタイトルの取り分が itemW - ICON_W - 12 = 16px しか残らず、
 -- ここを大きくするとタイトルが完全に消える。上げるなら MIN_ITEM_W も一緒に上げること。
 local ICON_W       = 32
-local FONT_SIZE    = 13
+-- 11 → 13 (ぼやけ対策, 2577ad4) → 12。ぼやけの主因はシステムフォント未指定と y 座標の
+-- 端数だったので、それらを直した後は 12 の方がむしろ輪郭が締まって見えた (実機確認)。
+local FONT_SIZE    = 12
 local FONT_NAME    = ".AppleSystemUIFont"
 local BG_COLOR     = { red = 0.10, green = 0.10, blue = 0.10, alpha = 0.92 }
 local ITEM_BG      = { red = 0.20, green = 0.20, blue = 0.20, alpha = 1.0 }
