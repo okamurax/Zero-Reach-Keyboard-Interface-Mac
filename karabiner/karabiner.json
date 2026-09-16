@@ -325,14 +325,31 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
                                     }
                                 ],
-                                "description": "F13+V = 直前のウィンドウへフォーカス (Win風Alt+Tab交互トグル)。F16を送出しHS側のhotkeyで受ける (旧: open -g hammerspoon://prevwindow)",
+                                "description": "F13+V = 直前のウィンドウへフォーカス (Win風Alt+Tab交互トグル)。F16を送出しHS側のhotkeyで受ける (旧: open -g hammerspoon://prevwindow)。【修飾キー固着はがし】Mac前面: 実行前に L/R Shift・Ctrl・Opt・Cmd を順にタップして up を流す (fn は🌐単押し設定に当たるので除外)",
                                 "from": {
                                     "key_code": "v",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "f16", "repeat": false }],
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "left_option" },
+                                    { "key_code": "left_command" },
+                                    { "key_code": "right_option" },
+                                    { "key_code": "right_command" },
+                                    { "key_code": "f16", "repeat": false }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -341,14 +358,60 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F17を送出しHS側のhotkeyで受ける",
+                                "description": "F13+V = 直前のウィンドウへフォーカス (Win風Alt+Tab交互トグル)。F16を送出しHS側のhotkeyで受ける (旧: open -g hammerspoon://prevwindow)。【修飾キー固着はがし】Parallels前面: Shift・Ctrl のみタップ (Win側で Win/Alt 単独タップはスタートメニュー/メニューバー活性化になるので除外)",
+                                "from": {
+                                    "key_code": "v",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "f16", "repeat": false }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
+                                    }
+                                ],
+                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F17を送出しHS側のhotkeyで受ける。【修飾キー固着はがし】Mac前面: 実行前に L/R Shift・Ctrl・Opt・Cmd を順にタップして up を流す (fn は🌐単押し設定に当たるので除外)",
                                 "from": {
                                     "key_code": "1",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "f17", "repeat": false }],
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "left_option" },
+                                    { "key_code": "left_command" },
+                                    { "key_code": "right_option" },
+                                    { "key_code": "right_command" },
+                                    { "key_code": "f17", "repeat": false }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -357,14 +420,60 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F18を送出しHS側のhotkeyで受ける",
+                                "description": "F13+1 = ウィンドウを左ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F17を送出しHS側のhotkeyで受ける。【修飾キー固着はがし】Parallels前面: Shift・Ctrl のみタップ (Win側で Win/Alt 単独タップはスタートメニュー/メニューバー活性化になるので除外)",
+                                "from": {
+                                    "key_code": "1",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "f17", "repeat": false }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
+                                    }
+                                ],
+                                "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F18を送出しHS側のhotkeyで受ける。【修飾キー固着はがし】Mac前面: 実行前に L/R Shift・Ctrl・Opt・Cmd を順にタップして up を流す (fn は🌐単押し設定に当たるので除外)",
                                 "from": {
                                     "key_code": "2",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "f18", "repeat": false }],
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "left_option" },
+                                    { "key_code": "left_command" },
+                                    { "key_code": "right_option" },
+                                    { "key_code": "right_command" },
+                                    { "key_code": "f18", "repeat": false }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -373,14 +482,89 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+X = ウィンドウを1200x750にリサイズ・位置維持 (Mac/コヒーレンス/VM本体すべてHSで処理)。F20を送出しHS側のhotkeyで受ける",
+                                "description": "F13+2 = ウィンドウを右ディスプレイに移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F18を送出しHS側のhotkeyで受ける。【修飾キー固着はがし】Parallels前面: Shift・Ctrl のみタップ (Win側で Win/Alt 単独タップはスタートメニュー/メニューバー活性化になるので除外)",
+                                "from": {
+                                    "key_code": "2",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "f18", "repeat": false }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
+                                    }
+                                ],
+                                "description": "F13+X = ウィンドウを1200x750にリサイズ・位置維持 (Mac/コヒーレンス/VM本体すべてHSで処理)。F20を送出しHS側のhotkeyで受ける。【修飾キー固着はがし】Mac前面: 実行前に L/R Shift・Ctrl・Opt・Cmd を順にタップして up を流す (fn は🌐単押し設定に当たるので除外)",
                                 "from": {
                                     "key_code": "x",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "f20", "repeat": false }],
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "left_option" },
+                                    { "key_code": "left_command" },
+                                    { "key_code": "right_option" },
+                                    { "key_code": "right_command" },
+                                    { "key_code": "f20", "repeat": false }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "F13+X = ウィンドウを1200x750にリサイズ・位置維持 (Mac/コヒーレンス/VM本体すべてHSで処理)。F20を送出しHS側のhotkeyで受ける。【修飾キー固着はがし】Parallels前面: Shift・Ctrl のみタップ (Win側で Win/Alt 単独タップはスタートメニュー/メニューバー活性化になるので除外)",
+                                "from": {
+                                    "key_code": "x",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "f20", "repeat": false }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -1000,17 +1184,30 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
                                     }
                                 ],
-                                "description": "F13+R = Mission Control",
+                                "description": "F13+R = Mission Control。【修飾キー固着はがし】Mac前面: 実行前に L/R Shift・Ctrl・Opt・Cmd を順にタップして up を流す (fn は🌐単押し設定に当たるので除外)",
                                 "from": {
                                     "key_code": "r",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
-                                    {
-                                        "key_code": "mission_control"
-                                    }
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "left_option" },
+                                    { "key_code": "left_command" },
+                                    { "key_code": "right_option" },
+                                    { "key_code": "right_command" },
+                                    { "key_code": "mission_control" }
                                 ],
                                 "type": "basic"
                             },
@@ -1020,14 +1217,89 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F19を送出しHS側のhotkeyで受ける",
+                                "description": "F13+R = Mission Control。【修飾キー固着はがし】Parallels前面: Shift・Ctrl のみタップ (Win側で Win/Alt 単独タップはスタートメニュー/メニューバー活性化になるので除外)",
+                                "from": {
+                                    "key_code": "r",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "mission_control" }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_unless"
+                                    }
+                                ],
+                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F19を送出しHS側のhotkeyで受ける。【修飾キー固着はがし】Mac前面: 実行前に L/R Shift・Ctrl・Opt・Cmd を順にタップして up を流す (fn は🌐単押し設定に当たるので除外)",
                                 "from": {
                                     "key_code": "c",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "f19", "repeat": false }],
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "left_option" },
+                                    { "key_code": "left_command" },
+                                    { "key_code": "right_option" },
+                                    { "key_code": "right_command" },
+                                    { "key_code": "f19", "repeat": false }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F19を送出しHS側のhotkeyで受ける。【修飾キー固着はがし】Parallels前面: Shift・Ctrl のみタップ (Win側で Win/Alt 単独タップはスタートメニュー/メニューバー活性化になるので除外)",
+                                "from": {
+                                    "key_code": "c",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    { "key_code": "left_shift" },
+                                    { "key_code": "left_control" },
+                                    { "key_code": "right_shift" },
+                                    { "key_code": "right_control" },
+                                    { "key_code": "f19", "repeat": false }
+                                ],
                                 "type": "basic"
                             },
                             {
