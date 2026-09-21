@@ -48,12 +48,12 @@ HeartbeatPath := ""
 WriteHeartbeat()                  ; 起動直後に1回書き、配線できているか即確認できるようにする
 SetTimer(WriteHeartbeat, 30000)
 
-^#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
-^#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
-^#7::Send("!{Right}")  ; F13+W (進む)
-^#8::SwitchTabPrev()
-^#9::SwitchTabNext()
-^#0::Send("!{Left}")   ; F13+Q (戻る)
+^!#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
+^!#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
+^!#7::Send("!{Right}")  ; F13+W (進む)
+^!#8::SwitchTabPrev()
+^!#9::SwitchTabNext()
+^!#0::Send("!{Left}")   ; F13+Q (戻る)
 
 SwitchTabPrev() {
     if WinActive("ahk_class CabinetWClass")

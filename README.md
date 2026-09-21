@@ -14,7 +14,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - **Hammerspoon** — ウィンドウ管理 / 自作 Win 風タスクバー / Parallels 連携 (`hammerspoon/`)
 - **AutoHotkey v2** (Parallels VM 内) — Windows アプリ向け companion スクリプト (`karabiner/assets/ahk/parallels_window_move.ahk`)
 
-3者は `hammerspoon://` URL や `Ctrl+Cmd+数字` ホットキーを経由して連携する (Karabiner → Parallels → VM内AHK の経路で Windows アプリを操作)。
+3者は `hammerspoon://` URL や `Ctrl+Opt+Cmd+数字` ホットキー (Ctrl+Cmd+数字は Finder のスタック/グループ分けと衝突するため避ける)を経由して連携する (Karabiner → Parallels → VM内AHK の経路で Windows アプリを操作)。
 
 ## 移行元 (Zero-Reach-AHK) からの主な変更点
 

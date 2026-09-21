@@ -179,7 +179,7 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "英数+F13 (Parallels) = Ctrl+Cmd+5 (Win IME ON)。英数押下中にF13でかな確定",
+                                "description": "英数+F13 (Parallels) = Ctrl+Opt+Cmd+5 (Win IME ON)。英数押下中にF13でかな確定",
                                 "from": {
                                     "key_code": "f13",
                                     "modifiers": { "optional": ["any"] }
@@ -187,7 +187,7 @@
                                 "to": [
                                     {
                                         "key_code": "5",
-                                        "modifiers": ["left_control", "left_command"]
+                                        "modifiers": ["left_control", "left_option", "left_command"]
                                     }
                                 ],
                                 "type": "basic"
@@ -229,7 +229,7 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "英数(Parallels) = Ctrl+Cmd+4 (Win IME OFF) + tab_heldレイヤー。ダブルタップ廃止、かなは英数+F13で切替(本ファイル内)",
+                                "description": "英数(Parallels) = Ctrl+Opt+Cmd+4 (Win IME OFF) + tab_heldレイヤー。ダブルタップ廃止、かなは英数+F13で切替(本ファイル内)",
                                 "from": {
                                     "key_code": "japanese_eisuu",
                                     "modifiers": { "optional": ["any"] }
@@ -237,7 +237,7 @@
                                 "to": [
                                     {
                                         "key_code": "4",
-                                        "modifiers": ["left_control", "left_command"]
+                                        "modifiers": ["left_control", "left_option", "left_command"]
                                     },
                                     {
                                         "set_variable": {
@@ -876,7 +876,7 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+Q (Parallels) = Ctrl+Cmd+0送出。AHKでAlt+Left (Explorer/ブラウザ戻る)。Opt+矢印はmacOSの単語移動と競合するためAHKトンネル経由",
+                                "description": "F13+Q (Parallels) = Ctrl+Opt+Cmd+0送出。AHKでAlt+Left (Explorer/ブラウザ戻る)。Opt+矢印はmacOSの単語移動と競合するためAHKトンネル経由",
                                 "from": {
                                     "key_code": "q",
                                     "modifiers": { "optional": ["any"] }
@@ -884,7 +884,7 @@
                                 "to": [
                                     {
                                         "key_code": "0",
-                                        "modifiers": ["left_control", "left_command"]
+                                        "modifiers": ["left_control", "left_option", "left_command"]
                                     }
                                 ],
                                 "type": "basic"
@@ -932,7 +932,7 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+W (Parallels) = Ctrl+Cmd+7送出。AHKでAlt+Right (Explorer/ブラウザ進む)",
+                                "description": "F13+W (Parallels) = Ctrl+Opt+Cmd+7送出。AHKでAlt+Right (Explorer/ブラウザ進む)",
                                 "from": {
                                     "key_code": "w",
                                     "modifiers": { "optional": ["any"] }
@@ -940,7 +940,7 @@
                                 "to": [
                                     {
                                         "key_code": "7",
-                                        "modifiers": ["left_control", "left_command"]
+                                        "modifiers": ["left_control", "left_option", "left_command"]
                                     }
                                 ],
                                 "type": "basic"
@@ -1009,7 +1009,7 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+A (Parallels) = Ctrl+Cmd+8送出。AHK側でExplorer=Ctrl+Shift+Tab、それ以外=Ctrl+PageUp",
+                                "description": "F13+A (Parallels) = Ctrl+Opt+Cmd+8送出。AHK側でExplorer=Ctrl+Shift+Tab、それ以外=Ctrl+PageUp",
                                 "from": {
                                     "key_code": "a",
                                     "modifiers": { "optional": ["any"] }
@@ -1017,7 +1017,7 @@
                                 "to": [
                                     {
                                         "key_code": "8",
-                                        "modifiers": ["left_control", "left_command"]
+                                        "modifiers": ["left_control", "left_option", "left_command"]
                                     }
                                 ],
                                 "type": "basic"
@@ -1065,7 +1065,7 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+S (Parallels) = Ctrl+Cmd+9送出。AHK側でExplorer=Ctrl+Tab、それ以外=Ctrl+PageDown",
+                                "description": "F13+S (Parallels) = Ctrl+Opt+Cmd+9送出。AHK側でExplorer=Ctrl+Tab、それ以外=Ctrl+PageDown",
                                 "from": {
                                     "key_code": "s",
                                     "modifiers": { "optional": ["any"] }
@@ -1073,7 +1073,7 @@
                                 "to": [
                                     {
                                         "key_code": "9",
-                                        "modifiers": ["left_control", "left_command"]
+                                        "modifiers": ["left_control", "left_option", "left_command"]
                                     }
                                 ],
                                 "type": "basic"
