@@ -69,7 +69,6 @@ local APP_NAME_ALIAS = {
 -- なので snapshotWindow の一般則では落とせない。ここで名指しで除外する。
 local EXCLUDED_BUNDLES = {
     ["org.hammerspoon.Hammerspoon"] = true,  -- 自分自身 (タスクバーの canvas を含む)
-    ["com.apptorium.SideNotes"]     = true,  -- 常時表示のサイドメモ。切替対象にならない
 }
 
 -- screenId -> { canvas, w, lastSig, lastDropped, items = { {win, x1, x2}, ... } }
