@@ -1584,6 +1584,27 @@
                                         "value": 1
                                     }
                                 ],
+                                "description": "F13+^ (JIS:equal_sign) = Ctrl+Shift+Cmd+P (Presentify: Annotate Screen 開始/終了)。Presentify側のグローバルショートカットに登録済み",
+                                "from": {
+                                    "key_code": "equal_sign",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "p",
+                                        "modifiers": ["left_control", "left_shift", "left_command"]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    }
+                                ],
                                 "description": "F13+] = $ (JIS:Shift+4)",
                                 "from": {
                                     "key_code": "backslash",
@@ -1617,54 +1638,24 @@
                                     }
                                 ],
                                 "type": "basic"
-                            }
-                        ]
-                    },
-                    {
-                        "description": "Parallels内でCmd+Shift+5 / Ctrl+Shift+5 のキャプチャを動作させる (Parallelsがキーをグラブする問題を回避)",
-                        "manipulators": [
-                            {
-                                "conditions": [
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_if"
-                                    }
-                                ],
-                                "description": "Cmd+Shift+5 (Parallels) = Screenshot.app 起動。Karabinerでキーを消費しシェル経由でアプリ起動することでParallelsのキーグラブを迂回",
-                                "from": {
-                                    "key_code": "5",
-                                    "modifiers": { "mandatory": ["left_command", "left_shift"], "optional": ["caps_lock"] }
-                                },
-                                "to": [
-                                    {
-                                        "shell_command": "/usr/bin/open -a /System/Applications/Utilities/Screenshot.app",
-                                        "repeat": false
-                                    }
-                                ],
-                                "type": "basic"
                             },
                             {
                                 "conditions": [
                                     {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_if"
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
                                     }
                                 ],
-                                "description": "Ctrl+Shift+5 (Parallels) = Screenshot.app 起動。Simple Modで Cmd↔Ctrl が逆方向に解釈された場合のフォールバック (AltTabのCmd+F13/Ctrl+F13両対応と同じ思想)",
+                                "description": "F13+¥ (JIS:international3) = Cmd+Shift+4 (macOS 範囲指定スクリーンショット)",
                                 "from": {
-                                    "key_code": "5",
-                                    "modifiers": { "mandatory": ["left_control", "left_shift"], "optional": ["caps_lock"] }
+                                    "key_code": "international3",
+                                    "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
                                     {
-                                        "shell_command": "/usr/bin/open -a /System/Applications/Utilities/Screenshot.app",
-                                        "repeat": false
+                                        "key_code": "4",
+                                        "modifiers": ["left_command", "left_shift"]
                                     }
                                 ],
                                 "type": "basic"
