@@ -1,0 +1,19 @@
+{
+    "manifest_version": 3,
+    "name": "Zero-Reach Link to New Tab",
+    "version": "1.0.3",
+    "description": "Cmd+Shift+クリック (Karabiner の F13+クリック) でリンクのアドレスをコピーし、新しいタブ (バックグラウンド) で開く。ページ側のクリックハンドラ (広告の横取り) にはイベントを渡さない。",
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content.js"],
+            "run_at": "document_start",
+            "all_frames": true,
+            "match_about_blank": true
+        }
+    ],
+    "permissions": ["clipboardWrite", "offscreen"]
+}

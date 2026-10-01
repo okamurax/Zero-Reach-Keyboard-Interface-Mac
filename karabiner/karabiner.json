@@ -1659,6 +1659,28 @@
                                     }
                                 ],
                                 "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": ["^com\\.google\\.Chrome$"],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "F13+左クリック (Chrome) = Cmd+Shift+左クリック。Chrome拡張 chrome-extension/link-to-new-tab が受けて、リンクのアドレスをコピー→新しいタブをバックグラウンドで開く。Karabinerは修飾付与のみ。Cmd+ShiftはChrome標準でも「新しいタブで開く」なので、拡張が取りこぼしても新規ウィンドウにはならない。外部マウスのみ有効 (内蔵トラックパッドのクリックはKarabinerが掴めない)",
+                                "from": { "pointing_button": "button1" },
+                                "to": [
+                                    {
+                                        "pointing_button": "button1",
+                                        "modifiers": ["left_command", "left_shift"]
+                                    }
+                                ],
+                                "type": "basic"
                             }
                         ]
                     },
