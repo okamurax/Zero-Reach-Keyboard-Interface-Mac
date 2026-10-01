@@ -48,12 +48,16 @@ HeartbeatPath := ""
 WriteHeartbeat()                  ; 起動直後に1回書き、配線できているか即確認できるようにする
 SetTimer(WriteHeartbeat, 30000)
 
-^!#4::Send("{vkF2}{vk19}")  ; 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
-^!#5::Send("{vkF2}")        ; VK_DBE_HIRAGANA (常にIME ON + ひらがな)
-^!#7::Send("!{Right}")  ; F13+W (進む)
-^!#8::SwitchTabPrev()
-^!#9::SwitchTabNext()
-^!#0::Send("!{Left}")   ; F13+Q (戻る)
+; 【キー選定の経緯】Ctrl+Opt+Cmd+数字 は Finder の「表示順序」(⌃⌥⌘0〜8) と衝突する。
+; コヒーレンスのフォーカス固着で Karabiner が Parallels 前面と誤認したまま送出すると、
+; デスクトップの並び順が「追加日」等に化ける (⌃⌥⌘4 で実際に発生)。その前は ⌃⌘数字 を
+; 使っておりスタックが有効化された。数字帯は丸ごと放棄し、Mac 側で無害な英字に逃がす。
+^!#j::Send("{vkF2}{vk19}")  ; 英数 (IME OFF): 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
+^!#k::Send("{vkF2}")        ; 英数+F13 (IME ON): VK_DBE_HIRAGANA (常にIME ON + ひらがな)
+^!#l::Send("!{Right}")  ; F13+W (進む)
+^!#u::SwitchTabPrev()   ; F13+A
+^!#o::SwitchTabNext()   ; F13+S
+^!#h::Send("!{Left}")   ; F13+Q (戻る)
 
 SwitchTabPrev() {
     if WinActive("ahk_class CabinetWClass")

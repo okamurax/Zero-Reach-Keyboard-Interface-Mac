@@ -14,7 +14,18 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - **Hammerspoon** — ウィンドウ管理 / 自作 Win 風タスクバー / Parallels 連携 (`hammerspoon/`)
 - **AutoHotkey v2** (Parallels VM 内) — Windows アプリ向け companion スクリプト (`karabiner/assets/ahk/parallels_window_move.ahk`)
 
-3者は `hammerspoon://` URL や `Ctrl+Opt+Cmd+数字` ホットキー (Ctrl+Cmd+数字は Finder のスタック/グループ分けと衝突するため避ける)を経由して連携する (Karabiner → Parallels → VM内AHK の経路で Windows アプリを操作)。
+3者は `hammerspoon://` URL や `Ctrl+Opt+Cmd+英字` ホットキーを経由して連携する (Karabiner → Parallels → VM内AHK の経路で Windows アプリを操作)。
+
+トンネルのキーに**数字は使わない**。Finder が `⌃⌘0` = スタックを使用、`⌃⌥⌘0`〜`⌃⌥⌘8` = 表示順序 (0:なし 1:名前 2:種類 3:最後に開いた日 4:追加日 5:変更日 6:作成日 7:サイズ 8:タグ) を予約しており、0〜8 が丸ごと埋まっているため。Karabiner 側は Parallels 前面のときだけ送出しているが、コヒーレンスのフォーカス固着で前面判定が Windows アプリのまま残ることがあり、その状態で押すとデスクトップに素通りする。実際に `⌃⌘0` でスタックが有効化し、`⌃⌥⌘4` でデスクトップが追加日順に化けた。現在の割り当ては下表のとおり。
+
+| トンネルキー | 送出元 | VM 内 AHK の動作 |
+|---|---|---|
+| `⌃⌥⌘J` | 英数 (Parallels前面) | Win IME OFF |
+| `⌃⌥⌘K` | 英数+F13 (Parallels前面) | Win IME ON (ひらがな) |
+| `⌃⌥⌘H` | F13+Q | Alt+Left (戻る) |
+| `⌃⌥⌘L` | F13+W | Alt+Right (進む) |
+| `⌃⌥⌘U` | F13+A | 前タブ |
+| `⌃⌥⌘O` | F13+S | 次タブ |
 
 ## 移行元 (Zero-Reach-AHK) からの主な変更点
 
