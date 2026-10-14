@@ -170,12 +170,35 @@ end
 -- 次回 render で再試行する。失敗を永続キャッシュするとアイコンが
 -- 二度と出なくなるため。signature にアイコン有無を含めることで、
 -- 後からアイコンが取得できた時点で再描画される (renderBar 参照)。
+--
+-- bundleID で引けないときは、実行中プロセスの bundle から直接読む。
+-- Parallels に登録していない Windows アプリ (自作 exe 等) をコヒーレンスで起動すると、
+-- Parallels は一時フォルダ ($TMPDIR/{VM-UUID}/<hash>.app) に使い捨ての bundle を作り、
+-- その Resources に exe のアイコンを書き出す。この bundle は LaunchServices に
+-- 登録されないので bundleID からパスを引けない。その場合 imageFromAppBundle(bid) は
+-- nil ではなく汎用の書類アイコンを返すので、結果ではなくパスの有無で分岐する。
+-- pathForBundleID も引けないときは nil ではなく "" を返す (Lua では真) ので空文字も弾く。
+-- app:path() は NSRunningApplication の bundleURL で AX を経由しないので、ここで引いても安い。
+-- .icns を直接読むと余白なしで枠いっぱいに描かれ他より大きく見えるので、
+-- 他のアプリ (imageFromAppBundle) と同じく NSWorkspace の iconForFile で引く。
 local iconCache = {}
-local function getAppIcon(bid)
+
+local function iconFromBundlePath(path)
+    if not path or path == "" then return nil end
+    return hs.image.iconForFile(path)
+end
+
+local function getAppIcon(bid, app)
     if not bid or bid == "" then return nil end
     local cached = iconCache[bid]
     if cached then return cached end
-    local img = hs.image.imageFromAppBundle(bid)
+    local img
+    local registered = hs.application.pathForBundleID(bid)
+    if (registered and registered ~= "") or not app then
+        img = hs.image.imageFromAppBundle(bid)
+    else
+        img = iconFromBundlePath(app:path()) or hs.image.imageFromAppBundle(bid)
+    end
     if img then iconCache[bid] = img end
     return img
 end
@@ -316,6 +339,18 @@ local function snapshotWindow(win)
         local role = win:role()
         taskable = (role ~= nil and role ~= "AXWindow" and title ~= "")
     end
+    if not taskable and bid and bid:find("^com%.parallels%.winapp%.")
+        and (app:name() or ""):find("^Visual Studio") then
+        -- Visual Studio (コヒーレンス) への特例。タイトルバーを自前描画する窓なので
+        -- Parallels が subrole=AXUnknown で返し、isStandard() が false になる。
+        -- role は AXWindow なので上の Bridge 特例にも該当しない。
+        --
+        -- bundleID の完全一致にしないのは、後半が exe パスの MD5 で
+        -- (…\Visual Studio\18\Insiders\…\devenv.exe)、メジャー更新や Insiders→正式版で
+        -- 変わるため。アプリ名の前方一致なら版を跨いで拾え、VSCode ("Code") も巻き込まない。
+        -- 無題の AXUnknown (ポップアップ類) は除くので title は必須。
+        taskable = (title ~= "" and win:subrole() == "AXUnknown")
+    end
     if not taskable then return nil end
 
     local screen = win:screen()
@@ -331,6 +366,9 @@ local function snapshotWindow(win)
         screenId = screen:id(),
         appName  = app:name() or "",
         bundle   = bid,
+        -- アイコンを bundleID で引けなかった時の取得元 (getAppIcon 参照)。
+        -- snapshot は使い捨てなので参照を持っても腐らない
+        app      = app,
         title    = title,
         -- Finder の app:hide() もグレーアウト扱い (個別 minimize は出来ないため)
         isMin    = win:isMinimized() or isHidden,
@@ -398,7 +436,7 @@ local function renderBar(bar, wins)
             title = title,
             isMin = e.isMin,
             -- 取得失敗 (起動直後) は nil。後から取得できたら signature が変わり再描画される
-            icon = getAppIcon(e.bundle),
+            icon = getAppIcon(e.bundle, e.app),
         }
         x0 = x0 + itemW + ITEM_GAP
     end
@@ -412,8 +450,9 @@ local function renderBar(bar, wins)
             (v.isMin and "m" or "_") .. (v.icon and "i" or "_")
     end
     local sig = table.concat(sigParts, "|")
+    -- lastSig は描画が最後まで通ってから更新する (末尾)。先に更新すると、途中の例外で
+    -- 半端に描かれたバーが次回以降「描画済み」としてスキップされ続ける。
     if bar.lastSig == sig then return end
-    bar.lastSig = sig
 
     -- 圧縮しても溢れた分は無言で消さず、変化時のみログに残す (no-silent-cap)
     if dropped > 0 and bar.lastDropped ~= dropped then
@@ -508,6 +547,7 @@ local function renderBar(bar, wins)
 
         x = x + itemW + ITEM_GAP
     end
+    bar.lastSig = sig
 end
 
 -- バーを必要なら作成、不要なら破棄、全部renderする
@@ -607,6 +647,8 @@ refresh = function()
             bars[id] = bar
         else
             -- ディスプレイ解像度・位置が変わった場合に追従
+            -- 変化時だけに絞らず毎回呼ぶ: macOS 側でバーがずれても (スリープ復帰等)
+            -- 次の refresh で必ず元の位置へ戻す自己修復を兼ねるため。AX を経由しないので安い。
             bar.canvas:frame({ x = barX, y = barY - CURSOR_PAD, w = barW, h = BAR_H + CURSOR_PAD })
             bar.w = barW
         end
@@ -666,10 +708,15 @@ function M.start()
     end):start()
 
     -- ディスプレイスリープ中はポーリングを止める (寝てる画面への描画でAppKitエラー)
+    -- window/app イベント由来の更新は止めない: 起床イベントを取りこぼしても
+    -- イベント駆動の更新で動き続けられるようにするため (全部止めると復旧手段が無くなる)。
+    -- systemDidWake も起床扱いにする: screensDidWake を取りこぼすとポーリングが止まったままになり、
+    -- しかも pollingActive=false のため watchdog も見送ってしまうので。
     M._caffeinateWatcher = hs.caffeinate.watcher.new(function(eventType)
         if eventType == hs.caffeinate.watcher.screensDidSleep then
             stopPoll()
-        elseif eventType == hs.caffeinate.watcher.screensDidWake then
+        elseif eventType == hs.caffeinate.watcher.screensDidWake
+            or eventType == hs.caffeinate.watcher.systemDidWake then
             startPoll()
             scheduleRefresh()
         end

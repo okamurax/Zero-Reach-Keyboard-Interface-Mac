@@ -1672,11 +1672,33 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+左クリック (Chrome) = Cmd+Shift+左クリック。Chrome拡張 chrome-extension/link-to-new-tab が受けて、リンクのアドレスをコピー→新しいタブをバックグラウンドで開く。Karabinerは修飾付与のみ。Cmd+ShiftはChrome標準でも「新しいタブで開く」なので、拡張が取りこぼしても新規ウィンドウにはならない。外部マウスのみ有効 (内蔵トラックパッドのクリックはKarabinerが掴めない)",
+                                "description": "F13+左クリック (Chrome) = Cmd+Shift+左クリック。Chrome拡張 chrome-extension/link-to-new-tab が受けて、リンク先へ今のタブを遷移させる。Karabinerは修飾付与のみ。Cmd+ShiftはChrome標準でも「新しいタブで開く」なので、拡張が取りこぼしても新規ウィンドウにはならない。外部マウスのみ有効 (内蔵トラックパッドのクリックはKarabinerが掴めない)",
                                 "from": { "pointing_button": "button1" },
                                 "to": [
                                     {
                                         "pointing_button": "button1",
+                                        "modifiers": ["left_command", "left_shift"]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": ["^com\\.google\\.Chrome$"],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "F13+右クリック (Chrome) = Cmd+Shift+右クリック。Chrome では Hammerspoon が右⇔中ボタンを入れ替えており (修飾キーは引き継ぐ)、機能上の F13+ミドルクリックになる。Chrome拡張 chrome-extension/link-to-new-tab が中ボタンとして受けて、リンクを新しいタブ (バックグラウンド) で開く。外部マウスのみ有効",
+                                "from": { "pointing_button": "button2" },
+                                "to": [
+                                    {
+                                        "pointing_button": "button2",
                                         "modifiers": ["left_command", "left_shift"]
                                     }
                                 ],
@@ -1924,12 +1946,12 @@
                                         "type": "frontmost_application_unless"
                                     }
                                 ],
-                                "description": "【1回目/Mac】左Cmdを単独tapしたらフラグを立て、300ms監視",
+                                "description": "【1回目/Mac】左Cmdを単独tapしたらフラグを立て、300ms監視。単押し判定は250ms以内に限る (to_if_aloneは離した時に走るので、300ms超えて押していると監視終了後にフラグが立ち、後の単押しが2回目扱いになるため)",
                                 "from": {
                                     "key_code": "left_command",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
+                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300, "basic.to_if_alone_timeout_milliseconds": 250 },
                                 "to": [
                                     {
                                         "key_code": "left_command",
@@ -2041,12 +2063,12 @@
                                         "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "【1回目/Parallels】左Cmdを単独tapしたらフラグを立て、修飾時はCtrl化",
+                                "description": "【1回目/Parallels】左Cmdを単独tapしたらフラグを立て、修飾時はCtrl化。単押し判定は250ms以内に限る (Mac側と同じ理由)",
                                 "from": {
                                     "key_code": "left_command",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
+                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300, "basic.to_if_alone_timeout_milliseconds": 250 },
                                 "to": [
                                     {
                                         "key_code": "left_control",

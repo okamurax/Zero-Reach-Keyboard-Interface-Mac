@@ -206,7 +206,7 @@ mkdir -p ~/.config/zero-reach-chrome && cp -R chrome-extension/* ~/.config/zero-
 1. Karabiner-Elements の GUI から complex_modifications の rule を有効化
 2. Hammerspoon を再起動 (`init.lua` 自動読込)
 3. (Parallels Windows 連携を使う場合) VM 内で `karabiner/assets/ahk/parallels_window_move.ahk` を AutoHotkey v2 で実行
-4. Chrome の `chrome://extensions` でデベロッパーモードを ON →「パッケージ化されていない拡張機能を読み込む」で `~/.config/zero-reach-chrome/link-to-new-tab` を指定。F13+クリック (Chrome) でリンクのアドレスをコピー→新しいタブをバックグラウンドで開く (フォーカスは元タブのまま)。Karabiner は F13+左クリックを Cmd+Shift+左クリックに変えるだけで、本体は拡張側。ページのスクリプトより先にイベントを捕まえて握りつぶすので、広告がクリックを横取りしない。内蔵トラックパッドのクリックは Karabiner が掴めないため外部マウスのみ (トラックパッドでは物理的に Cmd+Shift+クリックすれば同じ動作)。拡張を更新したら配り直して `chrome://extensions` で再読み込み
+4. Chrome の `chrome://extensions` でデベロッパーモードを ON →「パッケージ化されていない拡張機能を読み込む」で `~/.config/zero-reach-chrome/link-to-new-tab` を指定。F13+クリック (Chrome) でリンク先へ今のタブを遷移させ、F13+ミドルクリックで新しいタブ (バックグラウンド、フォーカスは元タブのまま) に開く。両者の違いは渡し先だけで、リンクの探し方は共通 (クリップボードへのコピーはしない。透明オーバーレイや same-origin の透明 iframe 越しでも下のリンクを拾う)。ここでのミドルクリックは Chrome での機能上の中ボタン (物理は右ボタン。Hammerspoon の右⇔中入れ替えが修飾キーを引き継いで中ボタンにする)。Karabiner は F13+左/右クリックを Cmd+Shift+同じボタンに変えるだけで、本体は拡張側。ページのスクリプトより先にイベントを捕まえて握りつぶすので、広告がクリックを横取りしない。内蔵トラックパッドのクリックは Karabiner が掴めないため外部マウスのみ (トラックパッドでは物理的に Cmd+Shift+クリックすれば同じ動作)。拡張を更新したら配り直して `chrome://extensions` で再読み込み
 
 AHK を起動したら、Mac 側に `~/.zero-reach-ahk-heartbeat` が生成されるか確認する (30秒待たずに起動直後に1回書く)。中身に書き込みに使った共有パスが入っているので `cat ~/.zero-reach-ahk-heartbeat` でどの経路で届いたか判る。生成されない場合は Parallels の「Mac を Windows と共有」が無効か共有名が候補と違うので、AHK 自体は動くが停止を検知できない。この状態は放置すると気付けないため、Hammerspoon が起動5分後に「未配線」通知を出す。
 

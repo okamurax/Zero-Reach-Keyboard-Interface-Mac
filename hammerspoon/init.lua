@@ -224,6 +224,11 @@ end
 -- 変換の可否は「押した瞬間」に判定して離すまで保持する (down/up を必ず対で扱う)。
 -- up のたびに前面アプリを見直すと、押している最中に Chrome が前面から外れた場合に
 -- down だけ変換され up が素通りし、Chrome にボタン押下状態が残ってしまうため。
+--
+-- 右→中ボタンの変換では修飾キーを引き継ぐ。Karabiner の F13+右クリック (= Chrome での
+-- F13+ミドルクリック) が Cmd+Shift を付けて送ってくるので、それを中ボタンのまま Chrome 拡張
+-- (chrome-extension/link-to-new-tab) に届け、リンクを新しいタブで開かせるため。
+-- newMouseEvent は修飾キーを持たないイベントを作るので、元イベントの flags を写す。
 local middleSwapped = false   -- 中ボタン→右 に変換中
 local rightSwapped  = false   -- 右→中ボタン に変換中
 
@@ -260,6 +265,7 @@ mouseSwapWatcher = hs.eventtap.new({
             if not rightSwapped then return false end
             local e = hs.eventtap.event.newMouseEvent(types.otherMouseDown, event:location())
             e:setProperty(props.mouseEventButtonNumber, 2)
+            e:setFlags(event:getFlags())
             return true, { e }
 
         elseif eventType == types.rightMouseUp then
@@ -267,6 +273,7 @@ mouseSwapWatcher = hs.eventtap.new({
             rightSwapped = false
             local e = hs.eventtap.event.newMouseEvent(types.otherMouseUp, event:location())
             e:setProperty(props.mouseEventButtonNumber, 2)
+            e:setFlags(event:getFlags())
             return true, { e }
         end
 
