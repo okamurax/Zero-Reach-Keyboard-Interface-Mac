@@ -339,16 +339,16 @@ local function snapshotWindow(win)
         local role = win:role()
         taskable = (role ~= nil and role ~= "AXWindow" and title ~= "")
     end
-    if not taskable and bid and bid:find("^com%.parallels%.winapp%.")
-        and (app:name() or ""):find("^Visual Studio") then
-        -- Visual Studio (コヒーレンス) への特例。タイトルバーを自前描画する窓なので
-        -- Parallels が subrole=AXUnknown で返し、isStandard() が false になる。
+    if not taskable and bid and bid:find("^com%.parallels%.winapp%.") then
+        -- コヒーレンスの Windows アプリでタイトルバーを自前描画する窓への特例
+        -- (Visual Studio、WindowChrome 化した自作 WPF アプリの Markdown Editor 等)。
+        -- Parallels はこの種の窓を subrole=AXUnknown で返すので isStandard() が false になる。
         -- role は AXWindow なので上の Bridge 特例にも該当しない。
         --
-        -- bundleID の完全一致にしないのは、後半が exe パスの MD5 で
-        -- (…\Visual Studio\18\Insiders\…\devenv.exe)、メジャー更新や Insiders→正式版で
-        -- 変わるため。アプリ名の前方一致なら版を跨いで拾え、VSCode ("Code") も巻き込まない。
-        -- 無題の AXUnknown (ポップアップ類) は除くので title は必須。
+        -- 以前は Visual Studio だけに絞っていたが、自作アプリも同じ理由で消えたので
+        -- Parallels の Windows アプリ全般に広げた。bundleID は exe パスの MD5 で
+        -- 版や置き場所で変わるため、アプリ単位の指定はしない (prefix で判定)。
+        -- 無題の AXUnknown (Coherence Helper の窓、ポップアップ類) は除くので title は必須。
         taskable = (title ~= "" and win:subrole() == "AXUnknown")
     end
     if not taskable then return nil end
