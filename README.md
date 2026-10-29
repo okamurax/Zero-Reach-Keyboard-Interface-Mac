@@ -20,7 +20,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 
 | トンネルキー | 送出元 | VM 内 AHK の動作 |
 |---|---|---|
-| `⌃⌥⌘J` | 英数 (Parallels前面) | Win IME OFF |
+| `⌃F19` | 英数 (Parallels前面) | Win IME OFF。Alt/Win を含むトンネルだと AHK の Send が Alt を離した瞬間に Win11 メモ帳がアクセスキー表示を出すため、これだけ Alt/Win 無しにしている (vkE8 によるマスクでは消えなかった) |
 | `⌃⌥⌘K` | 英数+F13 (Parallels前面) | Win IME ON (ひらがな) |
 | `⌃⌥⌘H` | F13+Q | Alt+Left (戻る) |
 | `⌃⌥⌘L` | F13+W | Alt+Right (進む) |

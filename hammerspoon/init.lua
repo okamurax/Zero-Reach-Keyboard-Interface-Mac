@@ -175,6 +175,63 @@ local function resizeModerate()
 end
 hs.urlevent.bind("resizemoderate", function(_, _) resizeModerate() end)
 
+-- hammerspoon://downloads
+-- ~/Downloads の Finder 窓をトグルする。画像等をすぐドラッグするための置き場。
+-- - 手前にある → 閉じる
+-- - 開いているが手前にない (後ろ・最小化) → マウスのある画面の右下へ置き直して手前に出す
+-- - 開いていない → hs.open で開き、窓が出るのを待ってから同様に配置
+-- Finder 窓の常時最前面化は他アプリのウィンドウレベルを変えられないため不可。キーで出し入れする方式にしている。
+-- 窓の判別はタイトル (= フォルダの表示名、日本語環境では「ダウンロード」) で行う。
+-- hs.open は NSWorkspace 経由なのでプロセス生成は起きない。
+local DOWNLOADS_PATH = os.getenv("HOME") .. "/Downloads"
+local DOWNLOADS_W, DOWNLOADS_H = 800, 450
+local DOWNLOADS_MARGIN = 16
+
+local function findDownloadsWindow()
+    local finder = hs.application.get("com.apple.finder")
+    if not finder then return nil end
+    local title = hs.fs.displayName(DOWNLOADS_PATH) or "Downloads"
+    for _, w in ipairs(finder:allWindows()) do
+        if w:isStandard() and w:title() == title then return w end
+    end
+    return nil
+end
+
+local function placeDownloadsWindow(win)
+    if win:isMinimized() then win:unminimize() end
+    local screen = hs.mouse.getCurrentScreen() or hs.screen.mainScreen()
+    -- frame() (visibleFrame) で右配置 Dock を避け、下端は自作タスクバー分を空ける
+    local vis = screen:frame()
+    local x = vis.x + vis.w - DOWNLOADS_W - DOWNLOADS_MARGIN
+    local y = vis.y + vis.h - taskbar.BAR_H - TASKBAR_GAP - DOWNLOADS_H
+    win:setFrame({ x = x, y = y, w = DOWNLOADS_W, h = DOWNLOADS_H }, 0)
+    win:focus()
+end
+
+local function toggleDownloads()
+    local win = findDownloadsWindow()
+    if win then
+        if win == hs.window.focusedWindow() then
+            win:close()
+        else
+            placeDownloadsWindow(win)
+        end
+        return
+    end
+    hs.open(DOWNLOADS_PATH)
+    -- 窓が出るまで 0.1 秒間隔で最大 3 秒待つ。タイトル不一致等で見つからない時に回り続けないよう打ち切る
+    local tries = 0
+    downloadsTimer = hs.timer.doEvery(0.1, function()
+        tries = tries + 1
+        local w = findDownloadsWindow()
+        if w or tries >= 30 then
+            downloadsTimer:stop()
+            if w then placeDownloadsWindow(w) else hs.printf("[downloads] window not found after open") end
+        end
+    end)
+end
+hs.urlevent.bind("downloads", function(_, _) toggleDownloads() end)
+
 -- Karabiner からのウィンドウ操作トリガ (F13レイヤー)。
 --
 -- 以前は Karabiner の shell_command で `open -g 'hammerspoon://...'` を叩いていたが、
@@ -192,17 +249,22 @@ hs.urlevent.bind("resizemoderate", function(_, _) resizeModerate() end)
 --
 -- URL ハンドラは残してある。手動起動用であり、karabiner.json を戻すだけで
 -- 旧方式に復帰できる (ロールバックを Karabiner 側の1ファイルに閉じ込める)。
+--
+-- F16〜F20 を使い切り、macOS には F21 以降のキーコードが無いため、以降は
+-- Ctrl+Opt+Cmd+F16 のように修飾付きで増やす (mods)。上記の不発条件はあるが、
+-- 英数レイヤーのように物理修飾キーを併用しない操作に限れば実害はない。
 local TRIGGERS = {
     { key = "f16", fn = prevWindow,      desc = "F13+V 直前のウィンドウ" },
     { key = "f17", fn = function() moveToDisplay({ idx = "0" }) end,               desc = "F13+1 左ディスプレイ" },
     { key = "f18", fn = function() moveToDisplay({ idx = "2" }) end,               desc = "F13+2 右ディスプレイ" },
     { key = "f19", fn = function() moveToDisplay({ idx = "1", dockw = "61" }) end, desc = "F13+C 中央ディスプレイ" },
     { key = "f20", fn = resizeModerate,  desc = "F13+X 1200x750" },
+    { mods = { "ctrl", "alt", "cmd" }, key = "f16", fn = toggleDownloads, desc = "英数+E ダウンロード窓" },
 }
 
 triggerHotkeys = {}
 for _, t in ipairs(TRIGGERS) do
-    local hk = hs.hotkey.bind({}, t.key, t.fn)
+    local hk = hs.hotkey.bind(t.mods or {}, t.key, t.fn)
     if hk then
         triggerHotkeys[#triggerHotkeys + 1] = hk
     else
