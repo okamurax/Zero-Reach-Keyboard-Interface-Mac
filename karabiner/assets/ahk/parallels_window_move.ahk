@@ -5,12 +5,13 @@
 ; ※ F13+1/2/C の移動と F13+X のリサイズは AHK(Ctrl+Win+1/2/3/6)を廃止し Hammerspoon に一本化した。
 ;    VM本体コンソール窓に触れた後 Parallels へのキー配送が詰まりウィンドウ操作が効かなくなる
 ;    固着があったため。HS の focusedWindow+setFrame で Mac/コヒーレンス/VM本体すべて直接処理する。
-;   Ctrl+Win+4 = MS-IME OFF (英数モード)      (英数単押し相当)
-;   Ctrl+Win+5 = MS-IME ON  (ひらがなモード)  (英数ダブルタップ相当)
-;   Ctrl+Win+7 = Alt+Right (F13+W 相当 / Explorer/ブラウザ進む)
-;   Ctrl+Win+8 = 前タブ (F13+A 相当 / Explorer=Ctrl+Shift+Tab、他=Ctrl+PageUp)
-;   Ctrl+Win+9 = 次タブ (F13+S 相当 / Explorer=Ctrl+Tab、他=Ctrl+PageDown)
-;   Ctrl+Win+0 = Alt+Left  (F13+Q 相当 / Explorer/ブラウザ戻る)
+;   Ctrl+F19       = MS-IME OFF (英数単押し)
+;   Ctrl+Alt+Win+K = MS-IME ON  (英数+F13、ひらがな)
+;   Ctrl+Alt+Win+L = Alt+Right (F13+W / Explorer/ブラウザ進む)
+;   Ctrl+Alt+Win+U = 前タブ (F13+A / Explorer=Ctrl+Shift+Tab、他=Ctrl+PageUp)
+;   Ctrl+Alt+Win+O = 次タブ (F13+S / Explorer=Ctrl+Tab、他=Ctrl+PageDown)
+;   Ctrl+Alt+Win+H = Alt+Left  (F13+Q / Explorer/ブラウザ戻る)
+;   (Mac 側の Ctrl+Opt+Cmd が Parallels で Ctrl+Alt+Win になる)
 ; ※ 最小化は Hammerspoon 側 (hammerspoon://minimizedisplay) に実装あり。
 ;    AHK の WinMinimize は Parallels Coherence では macOS 側で「非表示」扱いとなり
 ;    Hammerspoon 自作タスクバーから消える問題があったため AHK では扱わない。
@@ -52,6 +53,8 @@ SetTimer(WriteHeartbeat, 30000)
 ; コヒーレンスのフォーカス固着で Karabiner が Parallels 前面と誤認したまま送出すると、
 ; デスクトップの並び順が「追加日」等に化ける (⌃⌥⌘4 で実際に発生)。その前は ⌃⌘数字 を
 ; 使っておりスタックが有効化された。数字帯は丸ごと放棄し、Mac 側で無害な英字に逃がす。
+; 例外として英数 (IME OFF) だけは Ctrl+F19。Alt/Win を含むトンネルだと、Alt 無しのキーを Send した時に
+; Alt 単独押し扱いとなり Win11 メモ帳がアクセスキー表示を出したため (vkE8 マスクでは消えなかった)。
 ^F19::ImeOff()              ; 英数 (IME OFF)
 ^!#k::Send("{vkF2}")        ; 英数+F13 (IME ON): VK_DBE_HIRAGANA (常にIME ON + ひらがな)
 ^!#l::Send("!{Right}")  ; F13+W (進む)
@@ -65,6 +68,8 @@ SetTimer(WriteHeartbeat, 30000)
 ; IME 窓は非表示ウィンドウで AHK の SendMessage だと DetectHiddenWindows が要るため DllCall で送る。
 ; 送り先はフォーカス中のコントロール基準 (アプリによってはトップレベル窓の IME 窓では効かない)。
 ; IME 窓が取れない時だけ従来のキー送出に戻す。
+; 前面アプリが応答なしだと SendMessage がそこで止まり、AHK の全トンネルが道連れになる
+; (「AHK が黙って死んだ」と区別がつかない) ため、SMTO_ABORTIFHUNG 付きで 200ms で打ち切る。
 ImeOff() {
     hwnd := WinExist("A")
     try {
@@ -76,7 +81,8 @@ ImeOff() {
         Send("{vkF2}{vk19}")
         return
     }
-    DllCall("user32\SendMessageW", "Ptr", imeWnd, "UInt", 0x283, "Ptr", 0x006, "Ptr", 0)
+    DllCall("user32\SendMessageTimeoutW", "Ptr", imeWnd, "UInt", 0x283, "Ptr", 0x006, "Ptr", 0
+        , "UInt", 0x2, "UInt", 200, "Ptr*", 0)
 }
 
 SwitchTabPrev() {

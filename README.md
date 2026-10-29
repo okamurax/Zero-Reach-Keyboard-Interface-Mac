@@ -49,9 +49,10 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - `movetodisplay?idx=N` — N番目のディスプレイ (左から順) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。自作タスクバーの高さは `taskbar.lua` の `BAR_H` を直接参照するので URL には渡さない (値の二重管理を避けるため)。`idx` がディスプレイ数を超える場合は最右にクランプする (2画面では `idx=1` の「中央」も最右に丸まる)。
 - `prevwindow` — 直前まで手前にあったウィンドウへフォーカス (Win 風 Alt+Tab の交互トグル)。状態を持たず毎回 `orderedWindows` の重なり順を読むだけなので、Parallels のフォーカス固着の影響を受けにくい。
 - `resizemoderate` — 1200x750 固定リサイズ (位置維持)。
+- `downloads` — `~/Downloads` の Finder 窓をトグル。手前なら閉じ、それ以外はマウスのある画面の右下に 800x450 で出す (ダウンロードしたものをすぐドラッグする置き場。Finder 窓の常時最前面化は不可なのでキーで出し入れする)。
 - `minimizedisplay` — アクティブウィンドウを最小化。Finder のみ app:hide() に分岐 (Finder は win:minimize() で AX 列挙から落ちて自作タスクバーから消える特殊仕様のため)。現状どのキーにも未割当 (F13+F は「更新」へ変更済み)、手動 URL 起動用に残置。
 
-**Karabiner からの起動は URL ではなく F16〜F20 の送出**で行う (`hs.hotkey` で受ける)。以前は `open -g 'hammerspoon://...'` を叩いており、1押下ごとに sh と open の fork + LaunchServices への IPC が走っていた。連打時のプロセス生成が WindowServer を固める一因だったため経路ごと廃止した。F16 以降を選んだのは macOS 標準ホットキーが F14/F15 までしか使っておらず、かつ Parallels が F14 系以降をグラブしないため。修飾キーは付けない (Karabiner の `from` が物理修飾キーを素通しするため、修飾付きだとホットキーの完全一致から外れて不発になる)。URL ハンドラは手動起動用に残してあり、`karabiner.json` を戻すだけで旧方式に復帰できる。
+**Karabiner からの起動は URL ではなく F16〜F20 の送出**で行う (`hs.hotkey` で受ける)。以前は `open -g 'hammerspoon://...'` を叩いており、1押下ごとに sh と open の fork + LaunchServices への IPC が走っていた。連打時のプロセス生成が WindowServer を固める一因だったため経路ごと廃止した。F16 以降を選んだのは macOS 標準ホットキーが F14/F15 までしか使っておらず、かつ Parallels が F14 系以降をグラブしないため。修飾キーは原則付けない (Karabiner の `from` が物理修飾キーを素通しするため、修飾付きだとホットキーの完全一致から外れて不発になる)。F16〜F20 を使い切り macOS に F21 以降のキーコードが無いため、英数レイヤーのように物理修飾キーを併用しない操作に限り修飾付き (`⌃⌥⌘F16`) で増やしている。URL ハンドラは手動起動用に残してあり、`karabiner.json` を戻すだけで旧方式に復帰できる。
 
 | F13レイヤー | 送出キー | 処理 |
 |---|---|---|
@@ -60,6 +61,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | `2` | F18 | `movetodisplay?idx=2` |
 | `C` | F19 | `movetodisplay?idx=1&dockw=61` |
 | `X` | F20 | `resizemoderate` |
+| 英数+`E` | ⌃⌥⌘F16 | `downloads` |
 
 ### 自作Win風タスクバー (`taskbar.lua`)
 画面下に貼り付くタスクバーをディスプレイごとに表示。
@@ -119,6 +121,7 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | `3` | Backspace |
 | `4` | Enter |
 | `W` | Cmd+F14 (Spotlight、Mac/Parallels両対応) |
+| `E` | ダウンロードフォルダの Finder 窓をトグル (Mac/Parallels両対応) |
 | `F13` (= 英数+F13) | かな (Parallels時: Win-IME ON) |
 | 単押し | 英数 (Parallels時: Win-IME OFF) |
 

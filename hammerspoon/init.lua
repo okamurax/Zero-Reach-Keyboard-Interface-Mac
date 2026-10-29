@@ -178,8 +178,11 @@ hs.urlevent.bind("resizemoderate", function(_, _) resizeModerate() end)
 -- hammerspoon://downloads
 -- ~/Downloads の Finder 窓をトグルする。画像等をすぐドラッグするための置き場。
 -- - 手前にある → 閉じる
--- - 開いているが手前にない (後ろ・最小化) → マウスのある画面の右下へ置き直して手前に出す
--- - 開いていない → hs.open で開き、窓が出るのを待ってから同様に配置
+-- - 開いているが手前にない (同じ Space の後ろ) → マウスのある画面の右下へ置き直して手前に出す
+-- - 見つからない → hs.open で開き、窓が出るのを待ってから同様に配置
+--   最小化した Finder 窓は AX 列挙から落ち、allWindows は今の Space しか見ないため、
+--   最小化・別 Space の窓もこちらに来る (hs.open が既存窓を出してくれるので結果は同じ)
+-- 窓待ちの最中に連打されても多重に待たないよう、待機中の押下は無視する。
 -- Finder 窓の常時最前面化は他アプリのウィンドウレベルを変えられないため不可。キーで出し入れする方式にしている。
 -- 窓の判別はタイトル (= フォルダの表示名、日本語環境では「ダウンロード」) で行う。
 -- hs.open は NSWorkspace 経由なのでプロセス生成は起きない。
@@ -208,7 +211,10 @@ local function placeDownloadsWindow(win)
     win:focus()
 end
 
+local downloadsTimer = nil
+
 local function toggleDownloads()
+    if downloadsTimer then return end
     local win = findDownloadsWindow()
     if win then
         if win == hs.window.focusedWindow() then
@@ -226,6 +232,7 @@ local function toggleDownloads()
         local w = findDownloadsWindow()
         if w or tries >= 30 then
             downloadsTimer:stop()
+            downloadsTimer = nil
             if w then placeDownloadsWindow(w) else hs.printf("[downloads] window not found after open") end
         end
     end)
@@ -244,7 +251,7 @@ hs.urlevent.bind("downloads", function(_, _) toggleDownloads() end)
 -- F16〜F20 を選んだ理由: macOS 標準ホットキー (symbolichotkeys) が F13〜F20 のうち
 -- F14/F15 のみ使用しており、F16以降は未使用。Parallels は F14系以降をグラブしない
 -- (Spotlight を Cmd+F14、AltTab を Cmd+F13 で運用できている実績と同じ理屈)。
--- 修飾キーは付けない。Karabiner の from が optional:any で物理修飾キーを素通しするため、
+-- 修飾キーは原則付けない (例外は下記)。Karabiner の from が optional:any で物理修飾キーを素通しするため、
 -- 修飾付きにすると Shift 等を巻き込んだ時にホットキーの完全一致から外れて不発になる。
 --
 -- URL ハンドラは残してある。手動起動用であり、karabiner.json を戻すだけで
