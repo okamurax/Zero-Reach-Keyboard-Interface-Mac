@@ -52,12 +52,32 @@ SetTimer(WriteHeartbeat, 30000)
 ; コヒーレンスのフォーカス固着で Karabiner が Parallels 前面と誤認したまま送出すると、
 ; デスクトップの並び順が「追加日」等に化ける (⌃⌥⌘4 で実際に発生)。その前は ⌃⌘数字 を
 ; 使っておりスタックが有効化された。数字帯は丸ごと放棄し、Mac 側で無害な英字に逃がす。
-^F19::Send("{vkF2}{vk19}")  ; 英数 (IME OFF): 一旦IME ONにしてから半角/全角トグルでOFF (常にIME OFFで確定)
+^F19::ImeOff()              ; 英数 (IME OFF)
 ^!#k::Send("{vkF2}")        ; 英数+F13 (IME ON): VK_DBE_HIRAGANA (常にIME ON + ひらがな)
 ^!#l::Send("!{Right}")  ; F13+W (進む)
 ^!#u::SwitchTabPrev()   ; F13+A
 ^!#o::SwitchTabNext()   ; F13+S
 ^!#h::Send("!{Left}")   ; F13+Q (戻る)
+
+; IME OFF。キー送出 (ひらがな→半角/全角トグル) だと変換中はキーが変換操作として
+; 食われて OFF にならないため、IME 窓へ WM_IME_CONTROL(0x283) / IMC_SETOPENSTATUS(0x006) / 0
+; を送って開閉状態を直接 OFF にする。
+; IME 窓は非表示ウィンドウで AHK の SendMessage だと DetectHiddenWindows が要るため DllCall で送る。
+; 送り先はフォーカス中のコントロール基準 (アプリによってはトップレベル窓の IME 窓では効かない)。
+; IME 窓が取れない時だけ従来のキー送出に戻す。
+ImeOff() {
+    hwnd := WinExist("A")
+    try {
+        if ctl := ControlGetFocus("A")
+            hwnd := ctl
+    }
+    imeWnd := hwnd ? DllCall("imm32\ImmGetDefaultIMEWnd", "Ptr", hwnd, "Ptr") : 0
+    if !imeWnd {
+        Send("{vkF2}{vk19}")
+        return
+    }
+    DllCall("user32\SendMessageW", "Ptr", imeWnd, "UInt", 0x283, "Ptr", 0x006, "Ptr", 0)
+}
 
 SwitchTabPrev() {
     if WinActive("ahk_class CabinetWClass")
