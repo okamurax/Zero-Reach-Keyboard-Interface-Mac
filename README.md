@@ -79,13 +79,10 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 トラックパッドの中クリックは別アプリ **MiddleClick** が供給している。その **"Tap to click" は必ず OFF** (3本指の物理押し込みを要求) にすること。ON だと3本指タップで中クリックが合成され、文字入力中に手のひらが3点触れただけで Chrome にコンテキストメニューが暴発する。macOS 側の「タップでクリック」設定とは無関係に発火するので OS 側では止められない。
 
 ### 自己復旧・死活監視
-この構成は「壊れる」より「静かに効かなくなる」失敗が多いため、3つの watchdog を置いている。
+この構成は「壊れる」より「静かに効かなくなる」失敗が多いため、2つの watchdog を置いている。
 
 - **eventtap の再有効化** (1秒間隔) — メインスレッドが詰まると macOS がクリック変換のタップを無効化する。`CGEventTapIsEnabled` で検出して復帰させる。Hammerspoon 自身は自動再有効化しないため、この間隔がそのまま「無言で死んでいる最大時間」になる。
 - **タスクバーの停止検出** (30秒間隔) — windowFilter 購読・ポーリング・各 watcher には生存確認 API が無いので、機構ごとではなく「描画が更新され続けているか」(`taskbar.secondsSinceRefresh`) という結果側の一点で見る。止まっていれば watcher 一式を作り直す。
-- **VM 内 AHK の死活監視** (30秒間隔) — AHK が黙って落ちると Windows 側のトンネルが全滅する。AHK が Mac のホーム直下 `~/.zero-reach-ahk-heartbeat` を共有フォルダ経由で30秒ごとに更新し、途絶を Hammerspoon が通知する。**Parallels の「Mac を Windows と共有」が有効である必要がある**。共有名は設定で変わる (「すべてのディスク」= `\\Mac\AllFiles\Users\<Macユーザー名>\`、「ホームフォルダーのみ」= `\\Mac\Home\`) ため、AHK 側は両方を順に試す。
-  - 通知は2種類ある。**「AHK が停止しています」**= ハートビートが届いていたのに途絶えた。**「AHK 死活監視が未配線です」**= 一度も届いていない (旧版 AHK、または共有フォルダから書けていない)。判定はどちらも Parallels が前面のときだけ行うので、VM 停止中や Mac 作業中には鳴らない。
-  - 以前は「ファイルが無ければ黙る」実装で、`\\Mac\Home` 決め打ちと噛み合わず**導入以来一度も動いていなかった** (2026-08-28 判明)。未配線を黙殺しないのはこの再発防止のため。
 
 AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既定 (約6秒) のままだと、AX が詰まったアプリ1つでメインスレッドが数秒止まり、上記のタップ無効化を誘発するため。
 
@@ -210,8 +207,6 @@ mkdir -p ~/.config/zero-reach-chrome && cp -R chrome-extension/* ~/.config/zero-
 2. Hammerspoon を再起動 (`init.lua` 自動読込)
 3. (Parallels Windows 連携を使う場合) VM 内で `karabiner/assets/ahk/parallels_window_move.ahk` を AutoHotkey v2 で実行
 4. Chrome の `chrome://extensions` でデベロッパーモードを ON →「パッケージ化されていない拡張機能を読み込む」で `~/.config/zero-reach-chrome/link-to-new-tab` を指定。F13+クリック (Chrome) でリンク先へ今のタブを遷移させ、F13+ミドルクリックで新しいタブ (バックグラウンド、フォーカスは元タブのまま) に開く。両者の違いは渡し先だけで、リンクの探し方は共通 (クリップボードへのコピーはしない。透明オーバーレイや same-origin の透明 iframe 越しでも下のリンクを拾う)。ここでのミドルクリックは Chrome での機能上の中ボタン (物理は右ボタン。Hammerspoon の右⇔中入れ替えが修飾キーを引き継いで中ボタンにする)。Karabiner は F13+左/右クリックを Cmd+Shift+同じボタンに変えるだけで、本体は拡張側。ページのスクリプトより先にイベントを捕まえて握りつぶすので、広告がクリックを横取りしない。内蔵トラックパッドのクリックは Karabiner が掴めないため外部マウスのみ (トラックパッドでは物理的に Cmd+Shift+クリックすれば同じ動作)。拡張を更新したら配り直して `chrome://extensions` で再読み込み
-
-AHK を起動したら、Mac 側に `~/.zero-reach-ahk-heartbeat` が生成されるか確認する (30秒待たずに起動直後に1回書く)。中身に書き込みに使った共有パスが入っているので `cat ~/.zero-reach-ahk-heartbeat` でどの経路で届いたか判る。生成されない場合は Parallels の「Mac を Windows と共有」が無効か共有名が候補と違うので、AHK 自体は動くが停止を検知できない。この状態は放置すると気付けないため、Hammerspoon が起動5分後に「未配線」通知を出す。
 
 ## 前提環境
 
