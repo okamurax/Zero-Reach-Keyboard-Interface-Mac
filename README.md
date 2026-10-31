@@ -14,7 +14,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - **Hammerspoon** — ウィンドウ管理 / 自作 Win 風タスクバー / Parallels 連携 (`hammerspoon/`)
 - **AutoHotkey v2** (Parallels VM 内) — Windows アプリ向け companion スクリプト (`karabiner/assets/ahk/parallels_window_move.ahk`)
 
-3者は `hammerspoon://` URL や `Ctrl+Opt+Cmd+英字` ホットキーを経由して連携する (Karabiner → Parallels → VM内AHK の経路で Windows アプリを操作)。
+3者は Karabiner が送る F16〜F20 等のホットキーや `Ctrl+Opt+Cmd+英字` トンネルを経由して連携する (Karabiner → Parallels → VM内AHK の経路で Windows アプリを操作)。
 
 トンネルのキーに**数字は使わない**。Finder が `⌃⌘0` = スタックを使用、`⌃⌥⌘0`〜`⌃⌥⌘8` = 表示順序 (0:なし 1:名前 2:種類 3:最後に開いた日 4:追加日 5:変更日 6:作成日 7:サイズ 8:タグ) を予約しており、0〜8 が丸ごと埋まっているため。Karabiner 側は Parallels 前面のときだけ送出しているが、コヒーレンスのフォーカス固着で前面判定が Windows アプリのまま残ることがあり、その状態で押すとデスクトップに素通りする。実際に `⌃⌘0` でスタックが有効化し、`⌃⌥⌘4` でデスクトップが追加日順に化けた。現在の割り当ては下表のとおり。
 
@@ -33,7 +33,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 |---|---|---|
 | メインレイヤーキー | 右Shift | F13 (= 英数キーを物理リマップ) |
 | サブレイヤーキー | 無変換 | 英数 (= Tabキーを物理リマップ、`tab_held` 変数) |
-| ウィンドウ操作 | AHK 直接 | Hammerspoon URL handler 経由 |
+| ウィンドウ操作 | AHK 直接 | Hammerspoon (Karabiner からホットキー経由) |
 | タスクバー | Windows標準 / uBar | Hammerspoon 自作 (`taskbar.lua`) |
 | Parallels内 Windowsアプリ操作 | (該当なし) | VM内に AHK companion 常駐、Karabiner→Hammerspoon→AHK で操作トンネリング |
 | IME 切替 | 無変換 単押し → IME OFF | 英数 単押し → 英数 / 英数+F13 → かな (Parallels時は Win-IME ON/OFF に分岐) |
@@ -46,22 +46,21 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - **F13(英数)レイヤー** — F13 を保持しながら他キー押下で発火。矢印・タブ操作・ウィンドウ移動など多数。
 
 ### ウィンドウ管理 (Hammerspoon)
-- `movetodisplay?idx=N` — N番目のディスプレイ (左から順) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。自作タスクバーの高さは `taskbar.lua` の `BAR_H` を直接参照するので URL には渡さない (値の二重管理を避けるため)。`idx` がディスプレイ数を超える場合は最右にクランプする (2画面では `idx=1` の「中央」も最右に丸まる)。
-- `prevwindow` — 直前まで手前にあったウィンドウへフォーカス (Win 風 Alt+Tab の交互トグル)。状態を持たず毎回 `orderedWindows` の重なり順を読むだけなので、Parallels のフォーカス固着の影響を受けにくい。
-- `resizemoderate` — 1200x750 固定リサイズ (位置維持)。
-- `downloads` — `~/Downloads` の Finder 窓をトグル。手前なら閉じ、それ以外はマウスのある画面の右下に 800x450 で出す (ダウンロードしたものをすぐドラッグする置き場。Finder 窓の常時最前面化は不可なのでキーで出し入れする)。
-- `minimizedisplay` — アクティブウィンドウを最小化。Finder のみ app:hide() に分岐 (Finder は win:minimize() で AX 列挙から落ちて自作タスクバーから消える特殊仕様のため)。現状どのキーにも未割当 (F13+F は「更新」へ変更済み)、手動 URL 起動用に残置。
+- `moveToDisplay(idx, dockw)` — idx 番目のディスプレイ (左から0始まり) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。自作タスクバーの高さは `taskbar.lua` の `BAR_H` を直接参照する (値の二重管理を避けるため)。`idx` がディスプレイ数を超える場合は最右にクランプする (2画面では `idx=1` の「中央」も最右に丸まる)。
+- `prevWindow` — 直前まで手前にあったウィンドウへフォーカス (Win 風 Alt+Tab の交互トグル)。状態を持たず毎回 `orderedWindows` の重なり順を読むだけなので、Parallels のフォーカス固着の影響を受けにくい。
+- `resizeModerate` — 1200x750 固定リサイズ (位置維持)。
+- `toggleDownloads` — `~/Downloads` の Finder 窓をトグル。手前なら閉じ、それ以外はマウスのある画面の右下に 800x450 で出す (ダウンロードしたものをすぐドラッグする置き場。Finder 窓の常時最前面化は不可なのでキーで出し入れする)。
 
-**Karabiner からの起動は URL ではなく F16〜F20 の送出**で行う (`hs.hotkey` で受ける)。以前は `open -g 'hammerspoon://...'` を叩いており、1押下ごとに sh と open の fork + LaunchServices への IPC が走っていた。連打時のプロセス生成が WindowServer を固める一因だったため経路ごと廃止した。F16 以降を選んだのは macOS 標準ホットキーが F14/F15 までしか使っておらず、かつ Parallels が F14 系以降をグラブしないため。修飾キーは原則付けない (Karabiner の `from` が物理修飾キーを素通しするため、修飾付きだとホットキーの完全一致から外れて不発になる)。F16〜F20 を使い切り macOS に F21 以降のキーコードが無いため、英数レイヤーのように物理修飾キーを併用しない操作に限り修飾付き (`⌃⌥⌘F16`) で増やしている。URL ハンドラは手動起動用に残してあり、`karabiner.json` を戻すだけで旧方式に復帰できる。
+**Karabiner からの起動は F16〜F20 の送出**で行う (`hs.hotkey` で受ける)。以前は `open -g 'hammerspoon://...'` を叩いており、1押下ごとに sh と open の fork + LaunchServices への IPC が走っていた。連打時のプロセス生成が WindowServer を固める一因だったため経路ごと廃止し、URL ハンドラも (`hammerspoon://reload` 以外) 撤去した。F16 以降を選んだのは macOS 標準ホットキーが F14/F15 までしか使っておらず、かつ Parallels が F14 系以降をグラブしないため。修飾キーは原則付けない (Karabiner の `from` が物理修飾キーを素通しするため、修飾付きだとホットキーの完全一致から外れて不発になる)。F16〜F20 を使い切り macOS に F21 以降のキーコードが無いため、英数レイヤーのように物理修飾キーを併用しない操作に限り修飾付き (`⌃⌥⌘F16`) で増やしている。
 
 | F13レイヤー | 送出キー | 処理 |
 |---|---|---|
-| `V` | F16 | `prevwindow` |
-| `1` | F17 | `movetodisplay?idx=0` |
-| `2` | F18 | `movetodisplay?idx=2` |
-| `C` | F19 | `movetodisplay?idx=1&dockw=61` |
-| `X` | F20 | `resizemoderate` |
-| 英数+`E` | ⌃⌥⌘F16 | `downloads` |
+| `V` | F16 | `prevWindow` |
+| `1` | F17 | `moveToDisplay(0)` |
+| `2` | F18 | `moveToDisplay(2)` |
+| `C` | F19 | `moveToDisplay(1, 61)` |
+| `X` | F20 | `resizeModerate` |
+| 英数+`E` | ⌃⌥⌘F16 | `toggleDownloads` |
 
 ### 自作Win風タスクバー (`taskbar.lua`)
 画面下に貼り付くタスクバーをディスプレイごとに表示。
@@ -147,16 +146,6 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | `Backspace` | Forward Delete | (同左) |
 | `G` | Opt+Shift+G (Chrome 拡張用) | (同左) |
 | `Z` | Opt+Shift+Z (Chrome 拡張用) | (同左) |
-
-#### 修飾キー固着はがし (F13+V/1/2/C/X/R に同居)
-
-修飾キーが「押しっぱなし」扱いのまま残る現象 (フォーカス切替の瞬間に up を取りこぼしたアプリが自前の状態を握り続けるケースが典型) への対処。上記6キーは `to` の先頭で修飾キーを順にタップしてから本来のキーを送る。タイマーによる定期解除は「本当に押している最中」と区別できず誤爆するが、F13+1 等を押している瞬間は両手が F13 と対象キーに乗っていて修飾キーを意図的に保持していることがほぼ無いので、ここを解除タイミングに使う。頻繁に押すキーなので実質的な定期リセットにもなる。
-
-- **Mac 前面**: L/R の Shift・Ctrl・Opt・Cmd の 8 キーをタップ。fn は macOS の「🌐キー単押し」設定 (入力ソース切替・絵文字等) に当たるので入れない。
-- **Parallels 前面**: Shift・Ctrl のみ。Windows では Win 単独タップ = スタートメニュー、Alt 単独タップ = メニューバー活性化になるため Cmd/Opt は流さない。
-- タップ順は Shift と Ctrl を交互にしてある (Windows の固定キー機能は Shift 5 連打で発動する)。
-- **効くのはアプリ内の固着まで**。物理キーボード側で up が落ちたケースは Karabiner が「物理的に押下中」と記録したままなので、`to` のタップでは消えず次のキーに再び修飾キーが乗る。F13+R を押しても直らなければそちらと判断し、該当キーを物理的に一度押す。
-- F13+1 系は固着した修飾キーが F17〜F20 に乗ると `hs.hotkey` の完全一致から外れて本体が不発になるが、F13+R の `mission_control` は修飾キー付きでも開くので、固着中の脱出口としては F13+R が確実。
 
 #### F13 記号サブレイヤー (Mac/Parallels 共通)
 

@@ -71,23 +71,17 @@ local function screenAtIndex(idx)
     return screens[idx + 1]
 end
 
--- hammerspoon://moveToDisplay?idx=N[&dockw=N][&taskbar=N]
+-- 前面ウィンドウを idx 番目 (左から0始まり) のディスプレイへ移動+最大化する。
 -- fullFrame() ベースで決定論的に計算する。
 -- frame() (visibleFrame) は Dock の位置・auto-hide 状態で返り値が変わるため使わない。
 -- メニューバー高さは fullFrame と frame の差から検出 (Dock の有無に関係なく安定)。
--- dockw=N は右端から差し引くピクセル数 (右配置の Mac Dock 回避用)。
--- taskbar=N は下端から差し引くピクセル数 (下配置の Mac Dock や Windows タスクバー回避用)。
--- 省略時は自作タスクバーの実高さ (taskbar.BAR_H) を使う。呼び出し側 (Karabiner の
--- URL) に高さを書かないことで値の二重管理を避ける。回避したくない場合は taskbar=0。
--- taskbar>0 のときは自作タスクバーのカーソルガード帯(透明帯 4px)に下端が埋もれて
--- アプリ自身のリサイズカーソル(↕)が出たり消えたりするため、さらに余白を空けて縮める。
+-- dockw は右端から差し引くピクセル数 (右配置の Mac Dock 回避用)。
+-- 下端は自作タスクバーの実高さ (taskbar.BAR_H) を差し引く。値は taskbar.lua にだけ持つ。
+-- さらに余白を空けるのは、自作タスクバーのカーソルガード帯(透明帯 4px)に下端が埋もれて
+-- アプリ自身のリサイズカーソル(↕)が出たり消えたりするため。
 local TASKBAR_GAP = 8
-local function moveToDisplay(params)
-    local idx = tonumber(params.idx) or 0
-    local dockw = tonumber(params.dockw) or 0
-    -- モジュール taskbar を隠さないよう別名にする (以前 local taskbar で覆っていた)
-    local taskbarH = tonumber(params.taskbar) or taskbar.BAR_H
-    local gap = (taskbarH > 0) and TASKBAR_GAP or 0
+local function moveToDisplay(idx, dockw)
+    dockw = dockw or 0
 
     local screen = screenAtIndex(idx)
     if not screen then return end
@@ -99,7 +93,7 @@ local function moveToDisplay(params)
     local x = full.x
     local y = full.y + menubarH
     local w = full.w - dockw
-    local h = full.h - menubarH - taskbarH - gap
+    local h = full.h - menubarH - taskbar.BAR_H - TASKBAR_GAP
 
     local target, kind = focusedTarget()
     if not target then return end
@@ -115,9 +109,7 @@ local function moveToDisplay(params)
     end
     setTargetFrame(target, kind, x, y, w, h)
 end
-hs.urlevent.bind("movetodisplay", function(_, params) moveToDisplay(params) end)
 
--- hammerspoon://prevwindow
 -- 直前まで手前にあったウィンドウへフォーカスを移す (Win風 Alt+Tab の交互トグル)。
 -- 状態は一切持たず、毎回ウィンドウサーバの重なり順 (orderedWindows) を読むだけ。
 -- [1] は現在の手前窓なので、それ以外の最初の通常ウィンドウ = 直前の窓。
@@ -133,26 +125,7 @@ local function prevWindow()
         end
     end
 end
-hs.urlevent.bind("prevwindow", function(_, _) prevWindow() end)
 
--- hammerspoon://minimizedisplay
--- アクティブウィンドウ 1 つだけを minimize する。
--- 注: 現状この URL は karabiner のどのキーにも割り当てていない (F13+F は「更新」に変更済み)。
---     手動 URL 起動や将来の再バインド用に残してある。
--- Finder は win:minimize() で AX 列挙から落ちる仕様のため app:hide() に分岐
--- (app:hide() は全 Finder 窓に効くが taskbar 側で app:isHidden() を拾い続けるので消えない)。
-hs.urlevent.bind("minimizedisplay", function(_, _)
-    local focused = hs.window.focusedWindow()
-    if not focused then return end
-    local app = focused:application()
-    if app and app:bundleID() == "com.apple.finder" then
-        app:hide()
-    else
-        focused:minimize()
-    end
-end)
-
--- hammerspoon://resizeModerate
 -- 1200x750 固定サイズ。位置は変えない
 -- リサイズ後にタイトルバー中央へカーソルを移動して、そのままドラッグで動かせるようにする
 local function resizeModerate()
@@ -173,9 +146,7 @@ local function resizeModerate()
     end
     if pos then hs.mouse.absolutePosition(pos) end
 end
-hs.urlevent.bind("resizemoderate", function(_, _) resizeModerate() end)
 
--- hammerspoon://downloads
 -- ~/Downloads の Finder 窓をトグルする。画像等をすぐドラッグするための置き場。
 -- - 手前にある → 閉じる
 -- - 開いているが手前にない (同じ Space の後ろ) → マウスのある画面の右下へ置き直して手前に出す
@@ -237,7 +208,6 @@ local function toggleDownloads()
         end
     end)
 end
-hs.urlevent.bind("downloads", function(_, _) toggleDownloads() end)
 
 -- Karabiner からのウィンドウ操作トリガ (F13レイヤー)。
 --
@@ -254,17 +224,14 @@ hs.urlevent.bind("downloads", function(_, _) toggleDownloads() end)
 -- 修飾キーは原則付けない (例外は下記)。Karabiner の from が optional:any で物理修飾キーを素通しするため、
 -- 修飾付きにすると Shift 等を巻き込んだ時にホットキーの完全一致から外れて不発になる。
 --
--- URL ハンドラは残してある。手動起動用であり、karabiner.json を戻すだけで
--- 旧方式に復帰できる (ロールバックを Karabiner 側の1ファイルに閉じ込める)。
---
 -- F16〜F20 を使い切り、macOS には F21 以降のキーコードが無いため、以降は
 -- Ctrl+Opt+Cmd+F16 のように修飾付きで増やす (mods)。上記の不発条件はあるが、
 -- 英数レイヤーのように物理修飾キーを併用しない操作に限れば実害はない。
 local TRIGGERS = {
     { key = "f16", fn = prevWindow,      desc = "F13+V 直前のウィンドウ" },
-    { key = "f17", fn = function() moveToDisplay({ idx = "0" }) end,               desc = "F13+1 左ディスプレイ" },
-    { key = "f18", fn = function() moveToDisplay({ idx = "2" }) end,               desc = "F13+2 右ディスプレイ" },
-    { key = "f19", fn = function() moveToDisplay({ idx = "1", dockw = "61" }) end, desc = "F13+C 中央ディスプレイ" },
+    { key = "f17", fn = function() moveToDisplay(0) end,     desc = "F13+1 左ディスプレイ" },
+    { key = "f18", fn = function() moveToDisplay(2) end,     desc = "F13+2 右ディスプレイ" },
+    { key = "f19", fn = function() moveToDisplay(1, 61) end, desc = "F13+C 中央ディスプレイ" },
     { key = "f20", fn = resizeModerate,  desc = "F13+X 1200x750" },
     { mods = { "ctrl", "alt", "cmd" }, key = "f16", fn = toggleDownloads, desc = "英数+E ダウンロード窓" },
 }

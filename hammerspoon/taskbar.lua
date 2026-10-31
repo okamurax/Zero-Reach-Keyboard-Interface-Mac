@@ -21,8 +21,7 @@ M.BAR_H = BAR_H
 -- ウィンドウを上に CURSOR_PAD だけ広げ、↕の判定縁を可視バーの外(透明帯)へ逃がす。
 -- 中身は transformation で同量下げ位置不変。透明帯はクリックを奪うため、最小限の値にし、
 -- かつ click 時は y-guard で「帯のクリックは無視」して誤アプリ切替を防ぐ。
--- matrix API が無い環境では 0 にフォールバック (タスクバーを壊さない)。
-local CURSOR_PAD   = (hs.canvas.matrix and hs.canvas.matrix.translate) and 4 or 0
+local CURSOR_PAD   = 4
 local ITEM_W       = 210   -- ボタン幅の最大値 (ウィンドウが少ないとき)
 local MIN_ITEM_W   = 60    -- ボタン幅の最小値 (圧縮の下限。アイコン+タイトル数文字が残る幅)
 local ITEM_GAP     = 4
@@ -45,11 +44,9 @@ local ITEM_BG_MIN  = { red = 0.14, green = 0.14, blue = 0.14, alpha = 1.0 }
 local TEXT_COLOR   = { white = 0.83 }
 local TEXT_MIN     = { white = 0.55 }
 
--- ボタンのラベルを「アプリ名 + ウィンドウタイトル」にするか (例: "VSCode  taskbar.lua")。
--- どの窓がどのアプリのものか、アイコンを見分けなくても読めるようにするための実験スイッチ。
--- false に戻せば従来どおりウィンドウタイトルだけになる。
--- 幅は増えないので、その分だけタイトル本体の取り分が減る (2行折り返しに回る) ことに注意。
-local SHOW_APP_NAME = true
+-- ボタンのラベルは「アプリ名 + ウィンドウタイトル」(例: "VSCode  taskbar.lua")。
+-- どの窓がどのアプリのものか、アイコンを見分けなくても読めるようにするため。
+-- 幅は増えないので、その分だけタイトル本体の取り分が減る (2行折り返しに回る)。
 local APP_NAME_SEP  = "  "
 
 -- 表示用の短縮名 (実際のアプリ名 -> バーに出す名前)。
@@ -276,11 +273,6 @@ end
 -- ボタンに出す1行ぶんのラベル。
 local function labelFor(e)
     local appName = normalize(e.appName)
-    if not SHOW_APP_NAME then
-        -- 従来動作: ウィンドウタイトルのみ。無題ウィンドウだけアプリ名で代用する。
-        local t = normalize(e.title)
-        return (t ~= "") and t or appName
-    end
     local shown = APP_NAME_ALIAS[appName] or appName
     local title = stripAppSegment(normalize(e.title), appName)
     -- " - " 区切りを持たず "アプリ名 サブタイトル" と続くだけの窓 (4K Video Downloader+ 等)。
@@ -593,9 +585,7 @@ refresh = function()
             canvas:behavior({ "canJoinAllSpaces", "stationary" })
             canvas:clickActivating(false)
             -- 中身を CURSOR_PAD 下げ、広げた窓内で元位置に描く (↕縁逃がし)
-            if CURSOR_PAD > 0 then
-                canvas:transformation(hs.canvas.matrix.translate(0, CURSOR_PAD))
-            end
+            canvas:transformation(hs.canvas.matrix.translate(0, CURSOR_PAD))
             canvas:mouseCallback(function(_, msg, _, x, y)
                 if msg ~= "mouseDown" then return end
                 -- 可視バー上端の透明帯(y < CURSOR_PAD ↕逃がし用)へのクリックは無視。
