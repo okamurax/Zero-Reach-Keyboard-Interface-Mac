@@ -49,7 +49,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - `moveToDisplay(idx, dockw)` — idx 番目のディスプレイ (左から0始まり) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。自作タスクバーの高さは `taskbar.lua` の `BAR_H` を直接参照する (値の二重管理を避けるため)。`idx` がディスプレイ数を超える場合は最右にクランプする (2画面では `idx=1` の「中央」も最右に丸まる)。
 - `prevWindow` — 直前まで手前にあったウィンドウへフォーカス (Win 風 Alt+Tab の交互トグル)。状態を持たず毎回 `orderedWindows` の重なり順を読むだけなので、Parallels のフォーカス固着の影響を受けにくい。
 - `resizeModerate` — 1200x750 固定リサイズ (位置維持)。
-- `toggleDownloads` — `~/Downloads` の Finder 窓をトグル。手前なら閉じ、それ以外はマウスのある画面の右下に 800x450 で出す (ダウンロードしたものをすぐドラッグする置き場。Finder 窓の常時最前面化は不可なのでキーで出し入れする)。
+- `toggleDownloads` — 自作アプリ DownloadsShelf (`downloads-shelf/`) をトグル。見えていれば隠し、それ以外はカーソルの真下 (窓の中央がカーソル) に 800x450 で出す (ダウンロードしたものをすぐドラッグする置き場)。
 
 **Karabiner からの起動は F16〜F20 の送出**で行う (`hs.hotkey` で受ける)。以前は `open -g 'hammerspoon://...'` を叩いており、1押下ごとに sh と open の fork + LaunchServices への IPC が走っていた。連打時のプロセス生成が WindowServer を固める一因だったため経路ごと廃止し、URL ハンドラも (`hammerspoon://reload` 以外) 撤去した。F16 以降を選んだのは macOS 標準ホットキーが F14/F15 までしか使っておらず、かつ Parallels が F14 系以降をグラブしないため。修飾キーは原則付けない (Karabiner の `from` が物理修飾キーを素通しするため、修飾付きだとホットキーの完全一致から外れて不発になる)。F16〜F20 を使い切り macOS に F21 以降のキーコードが無いため、英数レイヤーのように物理修飾キーを併用しない操作に限り修飾付き (`⌃⌥⌘F16`) で増やしている。
 
@@ -117,7 +117,7 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | `3` | Backspace |
 | `4` | Enter |
 | `W` | Cmd+F14 (Spotlight、Mac/Parallels両対応) |
-| `E` | ダウンロードフォルダの Finder 窓をトグル (Mac/Parallels両対応) |
+| `E` | ダウンロードフォルダの置き場 (DownloadsShelf) をトグル (Mac/Parallels両対応) |
 | `F13` (= 英数+F13) | かな (Parallels時: Win-IME ON) |
 | 単押し | 英数 (Parallels時: Win-IME OFF) |
 
@@ -207,3 +207,14 @@ mkdir -p ~/.config/zero-reach-chrome && cp -R chrome-extension/* ~/.config/zero-
 ## 関連
 
 - 移行元 (Windows + AHK): [okamurax/Zero-Reach-AHK](https://github.com/okamurax/Zero-Reach-AHK)
+
+## DownloadsShelf (`downloads-shelf/`)
+
+英数+E で出す `~/Downloads` 専用の置き場。Finder 窓でサイドバー等を隠すと次に開く Finder 窓にも引き継がれるため、普段使いの Finder と見た目を分ける目的で自作した。
+
+- サムネイルを追加日の新しい順に並べ、フォルダの変更を監視して自動更新
+- 他アプリへドラッグで渡せる (複数選択可)。ダブルクリックで既定アプリで開く
+- 窓は常に最前面。Esc / 閉じるボタンでアプリごと隠す。Dock アイコンは出さない
+- 削除・リネーム等は持たない (Finder で行う)
+
+ビルドと配布は `downloads-shelf/build.sh` (Xcode 不要、swiftc のみ)。`~/Applications/DownloadsShelf.app` に置かれる。アドホック署名なので、再ビルド後にダウンロードフォルダへのアクセス許可を再度聞かれることがある。

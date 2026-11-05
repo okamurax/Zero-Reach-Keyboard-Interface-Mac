@@ -147,37 +147,32 @@ local function resizeModerate()
     if pos then hs.mouse.absolutePosition(pos) end
 end
 
--- ~/Downloads の Finder 窓をトグルする。画像等をすぐドラッグするための置き場。
--- - 手前にある → 閉じる
--- - 開いているが手前にない (同じ Space の後ろ) → マウスのある画面の右下へ置き直して手前に出す
--- - 見つからない → hs.open で開き、窓が出るのを待ってから同様に配置
---   最小化した Finder 窓は AX 列挙から落ち、allWindows は今の Space しか見ないため、
---   最小化・別 Space の窓もこちらに来る (hs.open が既存窓を出してくれるので結果は同じ)
+-- ~/Downloads の置き場 (自作アプリ DownloadsShelf、downloads-shelf/) をトグルする。画像等をすぐドラッグするため。
+-- Finder 窓はツールバー等の表示状態が次の Finder 窓に引き継がれ、普段使いの Finder と見た目を分けられないため専用アプリにした。
+-- - 窓が見えている → アプリごと隠す (窓は常に最前面なので「手前かどうか」は見ない)
+-- - 隠れている / 未起動 → 出して、窓が出るのを待ってからカーソルの真下 (窓の中央がカーソル) へ配置
 -- 窓待ちの最中に連打されても多重に待たないよう、待機中の押下は無視する。
--- Finder 窓の常時最前面化は他アプリのウィンドウレベルを変えられないため不可。キーで出し入れする方式にしている。
--- 窓の判別はタイトル (= フォルダの表示名、日本語環境では「ダウンロード」) で行う。
--- hs.open は NSWorkspace 経由なのでプロセス生成は起きない。
-local DOWNLOADS_PATH = os.getenv("HOME") .. "/Downloads"
+local SHELF_BUNDLE = "local.zero-reach.downloads-shelf"
 local DOWNLOADS_W, DOWNLOADS_H = 800, 450
-local DOWNLOADS_MARGIN = 16
 
-local function findDownloadsWindow()
-    local finder = hs.application.get("com.apple.finder")
-    if not finder then return nil end
-    local title = hs.fs.displayName(DOWNLOADS_PATH) or "Downloads"
-    for _, w in ipairs(finder:allWindows()) do
-        if w:isStandard() and w:title() == title then return w end
+local function visibleShelfWindow(app)
+    if not app or app:isHidden() then return nil end
+    for _, w in ipairs(app:allWindows()) do
+        if w:isVisible() then return w end
     end
     return nil
 end
 
+-- カーソルが窓の中央に来るように置く。画面端ではみ出す分は内側へ寄せる
 local function placeDownloadsWindow(win)
-    if win:isMinimized() then win:unminimize() end
+    local p = hs.mouse.absolutePosition()
     local screen = hs.mouse.getCurrentScreen() or hs.screen.mainScreen()
     -- frame() (visibleFrame) で右配置 Dock を避け、下端は自作タスクバー分を空ける
     local vis = screen:frame()
-    local x = vis.x + vis.w - DOWNLOADS_W - DOWNLOADS_MARGIN
-    local y = vis.y + vis.h - taskbar.BAR_H - TASKBAR_GAP - DOWNLOADS_H
+    local maxX = vis.x + vis.w - DOWNLOADS_W
+    local maxY = vis.y + vis.h - taskbar.BAR_H - TASKBAR_GAP - DOWNLOADS_H
+    local x = math.max(vis.x, math.min(p.x - DOWNLOADS_W / 2, maxX))
+    local y = math.max(vis.y, math.min(p.y - DOWNLOADS_H / 2, maxY))
     win:setFrame({ x = x, y = y, w = DOWNLOADS_W, h = DOWNLOADS_H }, 0)
     win:focus()
 end
@@ -186,25 +181,27 @@ local downloadsTimer = nil
 
 local function toggleDownloads()
     if downloadsTimer then return end
-    local win = findDownloadsWindow()
-    if win then
-        if win == hs.window.focusedWindow() then
-            win:close()
-        else
-            placeDownloadsWindow(win)
-        end
+    local app = hs.application.get(SHELF_BUNDLE)
+    if visibleShelfWindow(app) then
+        app:hide()
         return
     end
-    hs.open(DOWNLOADS_PATH)
-    -- 窓が出るまで 0.1 秒間隔で最大 3 秒待つ。タイトル不一致等で見つからない時に回り続けないよう打ち切る
+    if app then
+        app:unhide()
+        app:activate()
+    elseif not hs.application.launchOrFocusByBundleID(SHELF_BUNDLE) then
+        hs.printf("[downloads] DownloadsShelf を起動できない (downloads-shelf/build.sh 未実行?)")
+        return
+    end
+    -- 窓が出るまで 0.1 秒間隔で最大 3 秒待つ
     local tries = 0
     downloadsTimer = hs.timer.doEvery(0.1, function()
         tries = tries + 1
-        local w = findDownloadsWindow()
+        local w = visibleShelfWindow(hs.application.get(SHELF_BUNDLE))
         if w or tries >= 30 then
             downloadsTimer:stop()
             downloadsTimer = nil
-            if w then placeDownloadsWindow(w) else hs.printf("[downloads] window not found after open") end
+            if w then placeDownloadsWindow(w) else hs.printf("[downloads] shelf window not found") end
         end
     end)
 end
