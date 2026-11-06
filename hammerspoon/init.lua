@@ -147,63 +147,11 @@ local function resizeModerate()
     if pos then hs.mouse.absolutePosition(pos) end
 end
 
--- ~/Downloads の置き場 (自作アプリ DownloadsShelf、downloads-shelf/) をトグルする。画像等をすぐドラッグするため。
--- Finder 窓はツールバー等の表示状態が次の Finder 窓に引き継がれ、普段使いの Finder と見た目を分けられないため専用アプリにした。
--- - 窓が見えている → アプリごと隠す (窓は常に最前面なので「手前かどうか」は見ない)
--- - 隠れている / 未起動 → 出して、窓が出るのを待ってからカーソルの真下 (窓の中央がカーソル) へ配置
--- 窓待ちの最中に連打されても多重に待たないよう、待機中の押下は無視する。
-local SHELF_BUNDLE = "local.zero-reach.downloads-shelf"
-local DOWNLOADS_W, DOWNLOADS_H = 800, 450
-
-local function visibleShelfWindow(app)
-    if not app or app:isHidden() then return nil end
-    for _, w in ipairs(app:allWindows()) do
-        if w:isVisible() then return w end
-    end
-    return nil
-end
-
--- カーソルが窓の中央に来るように置く。画面端ではみ出す分は内側へ寄せる
-local function placeDownloadsWindow(win)
-    local p = hs.mouse.absolutePosition()
-    local screen = hs.mouse.getCurrentScreen() or hs.screen.mainScreen()
-    -- frame() (visibleFrame) で右配置 Dock を避け、下端は自作タスクバー分を空ける
-    local vis = screen:frame()
-    local maxX = vis.x + vis.w - DOWNLOADS_W
-    local maxY = vis.y + vis.h - taskbar.BAR_H - TASKBAR_GAP - DOWNLOADS_H
-    local x = math.max(vis.x, math.min(p.x - DOWNLOADS_W / 2, maxX))
-    local y = math.max(vis.y, math.min(p.y - DOWNLOADS_H / 2, maxY))
-    win:setFrame({ x = x, y = y, w = DOWNLOADS_W, h = DOWNLOADS_H }, 0)
-    win:focus()
-end
-
-local downloadsTimer = nil
-
-local function toggleDownloads()
-    if downloadsTimer then return end
-    local app = hs.application.get(SHELF_BUNDLE)
-    if visibleShelfWindow(app) then
-        app:hide()
-        return
-    end
-    if app then
-        app:unhide()
-        app:activate()
-    elseif not hs.application.launchOrFocusByBundleID(SHELF_BUNDLE) then
-        hs.printf("[downloads] DownloadsShelf を起動できない (downloads-shelf/build.sh 未実行?)")
-        return
-    end
-    -- 窓が出るまで 0.1 秒間隔で最大 3 秒待つ
-    local tries = 0
-    downloadsTimer = hs.timer.doEvery(0.1, function()
-        tries = tries + 1
-        local w = visibleShelfWindow(hs.application.get(SHELF_BUNDLE))
-        if w or tries >= 30 then
-            downloadsTimer:stop()
-            downloadsTimer = nil
-            if w then placeDownloadsWindow(w) else hs.printf("[downloads] shelf window not found") end
-        end
-    end)
+-- ~/Downloads の置き場 (自作アプリ DownloadsShelf、downloads-shelf/) を裏で起動しておく。
+-- 英数+E (⌃⌥⌘F16) の出し入れと配置はアプリ自身が Carbon ホットキーで行う。ここは常駐させるだけ。
+-- 起動中なら何もしない (HS リロードのたびに open しない)。
+if not hs.application.get("local.zero-reach.downloads-shelf") then
+    hs.task.new("/usr/bin/open", nil, { "-g", "-b", "local.zero-reach.downloads-shelf" }):start()
 end
 
 -- Karabiner からのウィンドウ操作トリガ (F13レイヤー)。
@@ -218,24 +166,24 @@ end
 -- F16〜F20 を選んだ理由: macOS 標準ホットキー (symbolichotkeys) が F13〜F20 のうち
 -- F14/F15 のみ使用しており、F16以降は未使用。Parallels は F14系以降をグラブしない
 -- (Spotlight を Cmd+F14、AltTab を Cmd+F13 で運用できている実績と同じ理屈)。
--- 修飾キーは原則付けない (例外は下記)。Karabiner の from が optional:any で物理修飾キーを素通しするため、
+-- 修飾キーは付けない。Karabiner の from が optional:any で物理修飾キーを素通しするため、
 -- 修飾付きにすると Shift 等を巻き込んだ時にホットキーの完全一致から外れて不発になる。
 --
 -- F16〜F20 を使い切り、macOS には F21 以降のキーコードが無いため、以降は
--- Ctrl+Opt+Cmd+F16 のように修飾付きで増やす (mods)。上記の不発条件はあるが、
--- 英数レイヤーのように物理修飾キーを併用しない操作に限れば実害はない。
+-- Ctrl+Opt+Cmd+F16 のように修飾付きで増やす。上記の不発条件はあるが、
+-- 英数レイヤーのように物理修飾キーを併用しない操作に限れば実害はない
+-- (現状は英数+E の ⌃⌥⌘F16 だけで、DownloadsShelf が自前で受けている)。
 local TRIGGERS = {
     { key = "f16", fn = prevWindow,      desc = "F13+V 直前のウィンドウ" },
     { key = "f17", fn = function() moveToDisplay(0) end,     desc = "F13+1 左ディスプレイ" },
     { key = "f18", fn = function() moveToDisplay(2) end,     desc = "F13+2 右ディスプレイ" },
     { key = "f19", fn = function() moveToDisplay(1, 61) end, desc = "F13+C 中央ディスプレイ" },
     { key = "f20", fn = resizeModerate,  desc = "F13+X 1200x750" },
-    { mods = { "ctrl", "alt", "cmd" }, key = "f16", fn = toggleDownloads, desc = "英数+E ダウンロード窓" },
 }
 
 triggerHotkeys = {}
 for _, t in ipairs(TRIGGERS) do
-    local hk = hs.hotkey.bind(t.mods or {}, t.key, t.fn)
+    local hk = hs.hotkey.bind({}, t.key, t.fn)
     if hk then
         triggerHotkeys[#triggerHotkeys + 1] = hk
     else

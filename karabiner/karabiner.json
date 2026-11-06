@@ -151,7 +151,7 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "英数+E = Ctrl+Opt+Cmd+F16 (ダウンロードフォルダの置き場 DownloadsShelf をトグル)。HS側のhotkeyで受ける。F16〜F20は F13 レイヤーで使い切ったため修飾付き。Mac/Parallels両対応",
+                                "description": "英数+E = Ctrl+Opt+Cmd+F16 (ダウンロードフォルダの置き場 DownloadsShelf をトグル)。DownloadsShelf 自身の Carbon ホットキーで受ける。F16〜F20は F13 レイヤーで使い切ったため修飾付き。Mac/Parallels両対応",
                                 "from": {
                                     "key_code": "e",
                                     "modifiers": { "optional": ["any"] }

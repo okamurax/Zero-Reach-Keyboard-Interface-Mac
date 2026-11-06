@@ -66,6 +66,7 @@ local APP_NAME_ALIAS = {
 -- なので snapshotWindow の一般則では落とせない。ここで名指しで除外する。
 local EXCLUDED_BUNDLES = {
     ["org.hammerspoon.Hammerspoon"] = true,  -- 自分自身 (タスクバーの canvas を含む)
+    ["local.zero-reach.downloads-shelf"] = true,  -- 英数+E の置き場 (常駐・キーで出し入れ)
 }
 
 -- screenId -> { canvas, w, lastSig, lastDropped, items = { {win, x1, x2}, ... } }
