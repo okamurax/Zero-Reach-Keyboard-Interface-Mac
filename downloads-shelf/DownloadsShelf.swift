@@ -2,9 +2,11 @@
 // Finder の窓状態 (ツールバー/サイドバー非表示) は次に開く Finder 窓へ引き継がれるため、
 // 見た目を Finder と切り離す目的で専用アプリにしている。
 // - 新しい順 (追加日) に並べ、フォルダの変更を監視して自動更新する
-// - ドラッグは file URL を渡すので Finder からのドラッグと同じ扱いになる
+// - ドラッグは file URL を渡す。外へのドラッグは常にコピー (Finder 窓へ落としても移動にならず、Dock のゴミ箱へ落としても消えない)
 // - ダブルクリックで既定アプリで開く。Esc / 閉じるボタンでアプリごと隠す
 // - 名前の下にファイルサイズ (Finder と同じ表記)
+// - 名前は文字単位で折り返す (サムネイル 3 行・リスト 2 行まで)。それでも入らない長い名前だけ真ん中を … で詰め、
+//   ホバーでフルネームを出す
 // - タイトルバー右端の「ゴミ箱に入れる」で、選択中のファイルをゴミ箱へ移す (選択が無い時は押せない)
 //   以前は一覧の先頭にゴミ箱セルを置いてドラッグで落とす方式だったが、同じ窓内のドロップが安定せず
 //   (Esc 取り消しでも消える・ハイライトが一瞬で消える等) 撤去した
@@ -40,6 +42,58 @@ let mmAccent = NSColor(srgbRed: 0x5d / 255.0, green: 0x89 / 255.0, blue: 0xea / 
 let mmText = NSColor.white.withAlphaComponent(0.64)   // 見出し・非アクティブ文字
 let mmHover = NSColor.white.withAlphaComponent(0.08)
 
+// 名前の折り返し (文字単位) と、行数制限を超える時の真ん中省略
+let thumbNameFont = NSFont.systemFont(ofSize: 11)
+let listNameFont = NSFont.systemFont(ofSize: 12)
+let thumbNameLines = 3
+let listNameLines = 2
+
+func textHeight(_ s: String, _ font: NSFont, _ width: CGFloat) -> CGFloat {
+    let para = NSMutableParagraphStyle()
+    para.lineBreakMode = .byCharWrapping
+    return ceil((s as NSString).boundingRect(with: NSSize(width: width, height: .greatestFiniteMagnitude),
+                                             options: [.usesLineFragmentOrigin],
+                                             attributes: [.font: font, .paragraphStyle: para]).height)
+}
+
+func linesHeight(_ font: NSFont, _ lines: Int) -> CGFloat {
+    textHeight(Array(repeating: "あ", count: lines).joined(separator: "\n"), font, 1000)
+}
+
+// width に lines 行で収まればそのまま。収まらなければ頭と末尾 (拡張子・連番) を残して真ん中を … にする
+func fitName(_ name: String, _ font: NSFont, _ width: CGFloat, _ lines: Int) -> String {
+    let limit = linesHeight(font, lines)
+    if width <= 0 || textHeight(name, font, width) <= limit { return name }
+    let chars = Array(name)
+    func cut(_ keep: Int) -> String {
+        let head = keep / 2
+        return String(chars[..<head]) + "…" + String(chars[(chars.count - (keep - head))...])
+    }
+    var lo = 0, hi = chars.count - 1
+    while lo < hi {
+        let mid = (lo + hi + 1) / 2
+        if textHeight(cut(mid), font, width) <= limit { lo = mid } else { hi = mid - 1 }
+    }
+    return cut(lo)
+}
+
+// 名前ラベルの共通設定。表示幅が決まってから (viewDidLayout) 詰めた文字列を入れる
+func setupNameLabel(_ label: NSTextField, _ font: NSFont, _ lines: Int) {
+    label.font = font
+    label.textColor = NSColor.white.withAlphaComponent(0.9)
+    label.lineBreakMode = .byCharWrapping
+    label.usesSingleLineMode = false
+    label.cell?.wraps = true
+    label.maximumNumberOfLines = lines
+}
+
+func applyName(_ item: NSCollectionViewItem, _ label: NSTextField, _ name: String, _ lines: Int) {
+    // 文字の描画域はラベル幅より左右 2pt ずつ狭い
+    let fitted = fitName(name, label.font!, label.bounds.width - 4, lines)
+    if label.stringValue != fitted { label.stringValue = fitted }
+    item.view.toolTip = fitted == name ? nil : name
+}
+
 final class ShelfItem: NSCollectionViewItem {
     static let id = NSUserInterfaceItemIdentifier("ShelfItem")
     let frameBox = NSBox()   // サムネイルの外枠。縦横比の違う画像でもアイテムの範囲が分かるように
@@ -47,6 +101,15 @@ final class ShelfItem: NSCollectionViewItem {
     let label = NSTextField(labelWithString: "")
     let sizeLabel = NSTextField(labelWithString: "")
     var url: URL?
+    var name = "" { didSet { view.needsLayout = true } }
+
+    // セル高: 上余白 4 + 枠 + 2 + 名前 3 行 + サイズ 1 行 + 下余白 4
+    static var height: CGFloat { 4 + thumbSize.height + 8 + 2 + linesHeight(thumbNameFont, thumbNameLines) + 14 + 4 }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        applyName(self, label, name, thumbNameLines)
+    }
 
     override func loadView() {
         let v = NSView()
@@ -62,10 +125,8 @@ final class ShelfItem: NSCollectionViewItem {
         frameBox.translatesAutoresizingMaskIntoConstraints = false
         thumb.imageScaling = .scaleProportionallyUpOrDown
         thumb.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .systemFont(ofSize: 11)
-        label.textColor = NSColor.white.withAlphaComponent(0.9)
+        setupNameLabel(label, thumbNameFont, thumbNameLines)
         label.alignment = .center
-        label.lineBreakMode = .byTruncatingMiddle
         label.translatesAutoresizingMaskIntoConstraints = false
         sizeLabel.font = .systemFont(ofSize: 10)
         sizeLabel.textColor = NSColor.white.withAlphaComponent(0.48)
@@ -84,10 +145,12 @@ final class ShelfItem: NSCollectionViewItem {
             thumb.centerYAnchor.constraint(equalTo: frameBox.centerYAnchor),
             thumb.widthAnchor.constraint(equalToConstant: thumbSize.width),
             thumb.heightAnchor.constraint(equalToConstant: thumbSize.height),
+            // 名前は上詰め、サイズはセル下端に揃える (行数が違ってもサイズの位置が揃う)
             label.topAnchor.constraint(equalTo: frameBox.bottomAnchor, constant: 2),
             label.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 2),
             label.trailingAnchor.constraint(equalTo: v.trailingAnchor, constant: -2),
-            sizeLabel.topAnchor.constraint(equalTo: label.bottomAnchor),
+            label.bottomAnchor.constraint(equalTo: sizeLabel.topAnchor),
+            sizeLabel.bottomAnchor.constraint(equalTo: v.bottomAnchor, constant: -4),
             sizeLabel.leadingAnchor.constraint(equalTo: v.leadingAnchor, constant: 2),
             sizeLabel.trailingAnchor.constraint(equalTo: v.trailingAnchor, constant: -2),
         ])
@@ -126,17 +189,30 @@ final class ShelfListItem: NSCollectionViewItem {
     let label = NSTextField(labelWithString: "")
     let sizeLabel = NSTextField(labelWithString: "")
     var url: URL?
+    var name = "" { didSet { view.needsLayout = true } }
+    static let sizeFont = NSFont.systemFont(ofSize: 11)
+
+    // 行の高さ: 名前が 1 行なら 26、折り返すならその分だけ高くする (最大 2 行)
+    static func height(name: String, size: String, rowWidth: CGFloat) -> CGFloat {
+        let sizeW = ceil((size as NSString).size(withAttributes: [.font: sizeFont]).width) + 4
+        let labelW = rowWidth - 8 - 18 - 8 - 8 - sizeW - 8 - 4
+        let h = min(textHeight(name, listNameFont, labelW), linesHeight(listNameFont, listNameLines))
+        return max(26, h + 10)
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        applyName(self, label, name, listNameLines)
+    }
 
     override func loadView() {
         let v = NSView()
         v.wantsLayer = true
         v.layer?.cornerRadius = 4
         icon.imageScaling = .scaleProportionallyUpOrDown
-        label.font = .systemFont(ofSize: 12)
-        label.textColor = NSColor.white.withAlphaComponent(0.9)
-        label.lineBreakMode = .byTruncatingMiddle
+        setupNameLabel(label, listNameFont, listNameLines)
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        sizeLabel.font = .systemFont(ofSize: 11)
+        sizeLabel.font = Self.sizeFont
         sizeLabel.textColor = NSColor.white.withAlphaComponent(0.48)
         sizeLabel.alignment = .right
         sizeLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -150,8 +226,9 @@ final class ShelfListItem: NSCollectionViewItem {
             icon.widthAnchor.constraint(equalToConstant: 18),
             icon.heightAnchor.constraint(equalToConstant: 18),
             label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 8),
-            label.centerYAnchor.constraint(equalTo: v.centerYAnchor),
-            sizeLabel.leadingAnchor.constraint(greaterThanOrEqualTo: label.trailingAnchor, constant: 8),
+            label.topAnchor.constraint(equalTo: v.topAnchor, constant: 5),
+            label.bottomAnchor.constraint(equalTo: v.bottomAnchor, constant: -3),
+            sizeLabel.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 8),
             sizeLabel.trailingAnchor.constraint(equalTo: v.trailingAnchor, constant: -8),
             sizeLabel.centerYAnchor.constraint(equalTo: v.centerYAnchor),
         ])
@@ -169,9 +246,12 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     static let id = NSUserInterfaceItemIdentifier("BoxHeader")
     let toggle = NSButton()
     let field = NSTextField()
+    let divider = NSView()   // 入力欄と、掴める空きとの境目の縦線
+    let bottomLine = NSView()   // 見出しの下線 (上にも引くと閉じた箱が並ぶ所で二重になる)
     let count = NSTextField(labelWithString: "")
     let remove = NSButton()
     let mode = NSButton()   // サムネイル / リスト切替
+    let trash = NSButton()  // 箱に見えているファイルを全部ゴミ箱へ
     var boxID: UUID?
     weak var owner: AppDelegate?
 
@@ -194,6 +274,10 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
             .foregroundColor: NSColor.white.withAlphaComponent(0.32), .font: NSFont.systemFont(ofSize: 12, weight: .semibold)])
         field.toolTip = "表示する拡張子 (例: xls, xlsx)。* で全部"
         field.delegate = self
+        for line in [divider, bottomLine] {
+            line.wantsLayer = true
+            line.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.15).cgColor
+        }
         count.font = .systemFont(ofSize: 11)
         count.textColor = NSColor.white.withAlphaComponent(0.4)
         remove.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: "箱を削除")
@@ -204,25 +288,44 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         remove.toolTip = "この箱を削除 (ファイルは消えない)"
         remove.target = self
         remove.action = #selector(removeTapped)
+        trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "全部ゴミ箱に入れる")
+        trash.symbolConfiguration = symbol
+        trash.contentTintColor = mmText
+        trash.isBordered = false
+        trash.isHidden = true
+        trash.toolTip = "この箱に見えているファイルを全部ゴミ箱に入れる"
+        trash.target = self
+        trash.action = #selector(trashTapped)
         mode.symbolConfiguration = symbol
         mode.contentTintColor = mmText
         mode.isBordered = false
         mode.target = self
         mode.action = #selector(modeTapped)
-        for v in [toggle, field, count, mode, remove] as [NSView] {
+        for v in [bottomLine, toggle, field, divider, count, trash, mode, remove] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             addSubview(v)
         }
         count.setContentCompressionResistancePriority(.required, for: .horizontal)
+        NSLayoutConstraint.activate([bottomLine.leadingAnchor.constraint(equalTo: leadingAnchor),
+                                     bottomLine.trailingAnchor.constraint(equalTo: trailingAnchor),
+                                     bottomLine.heightAnchor.constraint(equalToConstant: 1)])
         NSLayoutConstraint.activate([
             toggle.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             toggle.centerYAnchor.constraint(equalTo: centerYAnchor),
             toggle.widthAnchor.constraint(equalToConstant: 16),
             field.leadingAnchor.constraint(equalTo: toggle.trailingAnchor, constant: 4),
+            divider.leadingAnchor.constraint(equalTo: field.trailingAnchor, constant: 4),
+            divider.centerYAnchor.constraint(equalTo: centerYAnchor),
+            divider.widthAnchor.constraint(equalToConstant: 1),
+            divider.heightAnchor.constraint(equalToConstant: 14),
+            bottomLine.bottomAnchor.constraint(equalTo: bottomAnchor),
             field.centerYAnchor.constraint(equalTo: centerYAnchor),
             // 固定幅にして、右側の空きを掴める場所として残す (編集可能な欄は文字幅を持たないので広がってしまう)
             field.widthAnchor.constraint(equalToConstant: 120),
-            count.trailingAnchor.constraint(equalTo: mode.leadingAnchor, constant: -8),
+            count.trailingAnchor.constraint(equalTo: trash.leadingAnchor, constant: -8),
+            trash.trailingAnchor.constraint(equalTo: mode.leadingAnchor, constant: -6),
+            trash.centerYAnchor.constraint(equalTo: centerYAnchor),
+            trash.widthAnchor.constraint(equalToConstant: 16),
             mode.trailingAnchor.constraint(equalTo: remove.leadingAnchor, constant: -6),
             mode.centerYAnchor.constraint(equalTo: centerYAnchor),
             mode.widthAnchor.constraint(equalToConstant: 18),
@@ -244,7 +347,22 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         mode.image = NSImage(systemSymbolName: box.list ? "square.grid.2x2" : "list.bullet",
                              accessibilityDescription: box.list ? "サムネイル表示にする" : "リスト表示にする")
         mode.toolTip = box.list ? "サムネイル表示にする" : "リスト表示にする"
+    }
+
+    // 全体の作り直しで別の箱用に使い回される時だけ、前の箱のホバー表示を消す
+    override func prepareForReuse() {
+        super.prepareForReuse()
         setHover(false)
+    }
+
+    override func layout() {
+        super.layout()
+        window?.invalidateCursorRects(for: self)
+    }
+    // 入力欄とボタンの間の空き (= 掴んで並べ替える所) では手のひらのカーソルにする
+    override func resetCursorRects() {
+        addCursorRect(NSRect(x: divider.frame.maxX, y: 0, width: max(0, count.frame.minX - divider.frame.maxX),
+                             height: bounds.height), cursor: .openHand)
     }
 
     override func updateTrackingAreas() {
@@ -258,10 +376,8 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     func setHover(_ on: Bool) {
         layer?.backgroundColor = on ? mmHover.cgColor : nil
         remove.isHidden = !on
+        trash.isHidden = !on
     }
-
-    // 窓は isMovableByWindowBackground なので、これが無いと見出しを掴んだ時に窓ごと動いて並べ替えにならない
-    override var mouseDownCanMoveWindow: Bool { false }
 
     override func mouseDown(with event: NSEvent) {
         if let boxID { owner?.trackHeaderDrag(boxID, header: self, down: event) }
@@ -269,6 +385,7 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
 
     @objc func toggleTapped() { if let boxID { owner?.toggleBox(boxID) } }
     @objc func modeTapped() { if let boxID { owner?.toggleListMode(boxID) } }
+    @objc func trashTapped() { if let boxID { owner?.trashBox(boxID) } }
     @objc func removeTapped() { if let boxID { owner?.removeBox(boxID) } }
     // Enter・Tab・別の場所のクリックのどれでも来る (確定ボタンは置かない)
     func controlTextDidEndEditing(_ obj: Notification) {
@@ -277,19 +394,12 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
 }
 
 // - アイテム上: ダブルクリックで開く。1回目のクリックは通常どおり選択・ドラッグに回す
-// - アイテム外の余白: 窓の移動に使う (範囲選択の矩形ドラッグは捨てる。複数選択は ⌘/⇧クリックで)
+// - アイテム外の余白: 標準どおり (クリックで選択解除・ドラッグで範囲選択)
 final class ShelfCollectionView: NSCollectionView {
     var onOpen: ((IndexPath) -> Void)?
-    var onDeselectAll: (() -> Void)?   // コードからの選択解除はデリゲートに通知されないため
     override func mouseDown(with event: NSEvent) {
-        guard let ip = indexPathForItem(at: convert(event.locationInWindow, from: nil)) else {
-            window?.makeFirstResponder(self)   // 入力欄の編集をここで終わらせる (= 拡張子の反映)
-            deselectAll(nil)
-            onDeselectAll?()
-            window?.performDrag(with: event)
-            return
-        }
-        if event.clickCount == 2 {
+        window?.makeFirstResponder(self)   // 入力欄の編集をここで終わらせる (= 拡張子・検索語の確定)
+        if event.clickCount == 2, let ip = indexPathForItem(at: convert(event.locationInWindow, from: nil)) {
             onOpen?(ip)
             return
         }
@@ -305,6 +415,7 @@ final class ShelfWindow: NSWindow {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout, NSWindowDelegate, NSTextFieldDelegate {
     var window: ShelfWindow!
     var collection: ShelfCollectionView!
+    var scroll: NSScrollView!
     var boxes: [Box] = []
     // 表示中の内容。boxes を書き換えてから reload() するまでの間も、collection view はこちらだけを見る
     var shown: [(box: Box, files: [URL])] = []
@@ -320,7 +431,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
 
     func applicationDidFinishLaunching(_ note: Notification) {
         let layout = NSCollectionViewFlowLayout()
-        layout.itemSize = NSSize(width: thumbSize.width + 16, height: thumbSize.height + 48)
         layout.minimumInteritemSpacing = 4
         layout.minimumLineSpacing = 4
         layout.sectionInset = NSEdgeInsets(top: 4, left: 6, bottom: 10, right: 6)
@@ -337,16 +447,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         collection.register(ShelfListItem.self, forItemWithIdentifier: ShelfListItem.id)
         collection.register(BoxHeader.self, forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
                             withIdentifier: BoxHeader.id)
-        collection.setDraggingSourceOperationMask(.every, forLocal: false)
+        collection.setDraggingSourceOperationMask(.copy, forLocal: false)   // 移動・削除は許さない
         // 開くのはクリックしたセルが表示しているファイル (再読込で並びがずれても取り違えない)
-        collection.onDeselectAll = { [weak self] in self?.updateTrashButton() }
         collection.onOpen = { [weak self] ip in
             let item = self?.collection.item(at: ip)
             guard let url = (item as? ShelfItem)?.url ?? (item as? ShelfListItem)?.url else { return }
             NSWorkspace.shared.open(url)
         }
 
-        let scroll = NSScrollView()
+        scroll = NSScrollView()
+        scroll.automaticallyAdjustsContentInsets = false   // 下余白は keepHeaderInPlace が自分で足す
         scroll.documentView = collection
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = false
@@ -359,14 +469,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden   // タイトルバーはボタンで埋まるので出さない (Mission Control 等での名前としては残る)
         window.appearance = NSAppearance(named: .darkAqua)   // 標準部品 (タイトル・スクロールバー等) を紺背景に合う白系に
-        window.isMovableByWindowBackground = true   // ファイルが少なく collection view が窓を埋めない時の下側余白用
         window.hidesOnDeactivate = false
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         window.delegate = self
         let searchBar = makeSearchBar()
         let content = NSView()
-        for v in [searchBar, scroll] {
+        for v in [searchBar, scroll!] {
             v.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(v)
         }
@@ -411,6 +520,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
 
     // 隠れたまま位置を決めてから表示する (古い位置に一瞬出ない)
     func show() {
+        scroll.contentInsets.bottom = 0   // keepHeaderInPlace が足した余白を戻す
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
         if let vis = screen?.visibleFrame {   // visibleFrame で右配置 Dock とメニューバーを避ける
@@ -561,24 +671,96 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
     func toggleBox(_ id: UUID) {
         endEditing()
         guard let i = boxes.firstIndex(where: { $0.id == id }) else { return }
-        boxes[i].open.toggle()
-        saveBoxes()
-        reload()
+        keepHeaderInPlace(id) {
+            boxes[i].open.toggle()
+            saveBoxes()
+            refreshBox(i)
+        }
     }
 
     func toggleListMode(_ id: UUID) {
         endEditing()
         guard let i = boxes.firstIndex(where: { $0.id == id }) else { return }
-        boxes[i].list.toggle()
-        saveBoxes()
-        reload()
+        keepHeaderInPlace(id) {
+            boxes[i].list.toggle()
+            saveBoxes()
+            refreshBox(i)
+        }
+    }
+
+    // 見出しからの操作 (開閉・表示切替・並べ替え・削除) では一覧を全部作り直さない。
+    // 全部作り直すと見出しの部品が別の箱用に使い回され、直前に押した部品へ届く後続のイベント
+    // (ダブルクリックの 2 回目など) が別の箱に当たる。中身のセルだけ入れ替え、見出しは同じ部品をその場で書き換える
+    func refreshBox(_ s: Int) {
+        if isEditing { return }   // 入力中は setFilter → reload で全体を作り直す
+        let section = { (n: Int) in Set((0..<n).map { IndexPath(item: $0, section: s) }) }
+        let selected = Set(collection.selectionIndexPaths.filter { $0.section == s }.compactMap { url(at: $0) })
+        let oldCount = collection.numberOfItems(inSection: s)
+        shown[s] = (boxes[s], searchHits().filter { boxes[s].shows($0) })
+        let newCount = collectionView(collection, numberOfItemsInSection: s)
+        collection.performBatchUpdates({
+            collection.deleteItems(at: section(oldCount))
+            collection.insertItems(at: section(newCount))
+        })
+        let keep = shown[s].box.open ? shown[s].files.indices.filter { selected.contains(shown[s].files[$0]) } : []
+        collection.selectItems(at: Set(keep.map { IndexPath(item: $0, section: s) }), scrollPosition: [])
+        (collection.supplementaryView(forElementKind: NSCollectionView.elementKindSectionHeader,
+                                      at: IndexPath(item: 0, section: s)) as? BoxHeader)?
+            .configure(shown[s].box, fileCount: shown[s].files.count)
+        updateTrashButton()
+    }
+
+    // 見出しから箱を開閉・切替した時、その見出しを画面上の同じ位置に留める。
+    // 下の方までスクロールした状態で箱が縮むとスクロール位置が押し戻されて一覧が下へずれ、
+    // マウスの下に別の箱の見出しが来て、続けてのクリックが別の箱に当たってしまうため。
+    // 中身が足りなくて留められない時は下に余白を足す (余白は次に窓を出し直す時に消す)
+    func keepHeaderInPlace(_ id: UUID, _ change: () -> Void) {
+        let clip = scroll.contentView
+        func headerFrame() -> NSRect? {
+            guard let s = shown.firstIndex(where: { $0.box.id == id }) else { return nil }
+            return collection.layoutAttributesForSupplementaryElement(ofKind: NSCollectionView.elementKindSectionHeader,
+                                                                      at: IndexPath(item: 0, section: s))?.frame
+        }
+        let before = headerFrame().map { $0.minY - clip.bounds.minY }
+        change()
+        collection.layoutSubtreeIfNeeded()
+        guard let before, let after = headerFrame() else { return }
+        let origin = max(0, after.minY - before)
+        let contentH = collection.collectionViewLayout?.collectionViewContentSize.height ?? 0
+        scroll.contentInsets.bottom = max(0, origin + clip.bounds.height - contentH)
+        clip.scroll(to: NSPoint(x: clip.bounds.minX, y: origin))
+        scroll.reflectScrolledClipView(clip)
     }
 
     func removeBox(_ id: UUID) {
         endEditing()
-        boxes.removeAll { $0.id == id }
+        guard !isEditing, let i = boxes.firstIndex(where: { $0.id == id }) else { return }
+        boxes.remove(at: i)
         saveBoxes()
-        reload()
+        shown.remove(at: i)
+        collection.performBatchUpdates({ collection.deleteSections(IndexSet(integer: i)) })
+        updateTrashButton()
+    }
+
+    // 箱に見えているファイル (検索中なら検索に当たったもの。閉じていても対象) を確認のうえ全部ゴミ箱へ。
+    // 「*」の箱ならダウンロードフォルダ全部になるので、件数を見せて一度止める
+    func trashBox(_ id: UUID) {
+        endEditing()
+        guard let files = shown.first(where: { $0.box.id == id })?.files, !files.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = "\(files.count) 個のファイルをゴミ箱に入れますか?"
+        alert.informativeText = searchField.stringValue.isEmpty ? "この箱に見えているファイルすべてが対象です。"
+                                                                : "この箱で検索に当たっているファイルすべてが対象です。"
+        alert.addButton(withTitle: "ゴミ箱に入れる")
+        alert.addButton(withTitle: "キャンセル")
+        alert.beginSheetModal(for: window) { response in
+            guard response == .alertFirstButtonReturn else { return }
+            self.collection.deselectAll(nil)
+            self.updateTrashButton()
+            NSWorkspace.shared.recycle(files) { _, error in
+                if let error { NSLog("[DownloadsShelf] recycle failed: \(error)") }
+            }
+        }
     }
 
     // 見出しの mouseDown から。動かさずに離せば開閉、上下に動かせば並べ替え。
@@ -630,10 +812,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         ghost.removeFromSuperview()
         line.removeFromSuperview()
         if target > from { target -= 1 }
-        guard target != from, let i = boxes.firstIndex(where: { $0.id == id }) else { return }
-        boxes.insert(boxes.remove(at: i), at: min(target, boxes.count))
+        guard target != from, !isEditing else { return }
+        boxes.insert(boxes.remove(at: from), at: target)
         saveBoxes()
-        reload()
+        shown.insert(shown.remove(at: from), at: target)
+        collection.performBatchUpdates({ collection.moveSection(from, toSection: target) })
     }
 
     @objc func openAllBoxes() { setAllBoxes(open: true) }
@@ -642,7 +825,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         endEditing()
         for i in boxes.indices { boxes[i].open = open }
         saveBoxes()
-        reload()
+        rebuild()
     }
 
     // 末尾に空の箱を足し、その入力欄にフォーカスする
@@ -688,8 +871,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
     func rebuild() {
         // 見出しの入力中に作り直すと文字が消える。編集が終われば setFilter → reload から呼ばれる
         if isEditing { return }
-        let words = searchWords
-        let hits = files.filter { u in words.allSatisfy { u.lastPathComponent.localizedStandardContains($0) } }
+        let hits = searchHits()
         // 選択は番号ではなく (箱, ファイル) で持ち越す。新着や箱の増減で並びがずれても別のファイルへ移らないように
         let selected = Set(collection.selectionIndexPaths.compactMap { ip in url(at: ip).map { "\(shown[ip.section].box.id)/\($0.path)" } })
         shown = boxes.map { box in (box, hits.filter { box.shows($0) }) }
@@ -702,6 +884,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         }
         collection.selectionIndexPaths = restore
         updateTrashButton()
+    }
+
+    // 検索語で絞ったファイル (フォルダは読み直さない)
+    func searchHits() -> [URL] {
+        let words = searchWords
+        return files.filter { u in words.allSatisfy { u.lastPathComponent.localizedStandardContains($0) } }
     }
 
     func url(at ip: IndexPath) -> URL? {
@@ -764,9 +952,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
     func collectionView(_ cv: NSCollectionView, layout: NSCollectionViewLayout, sizeForItemAt ip: IndexPath) -> NSSize {
         let minW = thumbSize.width + 8, gap: CGFloat = 4
         let avail = cv.bounds.width - 12   // 左右の sectionInset
-        if shown[ip.section].box.list { return NSSize(width: avail, height: 26) }
+        if shown[ip.section].box.list {
+            let url = shown[ip.section].files[ip.item]
+            return NSSize(width: avail, height: ShelfListItem.height(name: url.lastPathComponent, size: sizes[url] ?? "", rowWidth: avail))
+        }
         let n = max(1, floor((avail + gap) / (minW + gap)))
-        return NSSize(width: floor((avail - gap * (n - 1)) / n), height: thumbSize.height + 48)
+        return NSSize(width: floor((avail - gap * (n - 1)) / n), height: ShelfItem.height)
     }
 
     // リストは行間を詰める
@@ -789,7 +980,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
             let row = cv.makeItem(withIdentifier: ShelfListItem.id, for: ip) as! ShelfListItem
             let url = shown[ip.section].files[ip.item]
             row.url = url
-            row.label.stringValue = url.lastPathComponent
+            row.name = url.lastPathComponent
             row.sizeLabel.stringValue = sizes[url] ?? ""
             row.icon.image = NSWorkspace.shared.icon(forFile: url.path)
             return row
@@ -797,7 +988,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         let item = cv.makeItem(withIdentifier: ShelfItem.id, for: ip) as! ShelfItem
         let url = shown[ip.section].files[ip.item]
         item.url = url
-        item.label.stringValue = url.lastPathComponent
+        item.name = url.lastPathComponent
         item.sizeLabel.stringValue = sizes[url] ?? ""
         item.thumb.image = thumbs[url]
         if thumbs[url] == nil {
