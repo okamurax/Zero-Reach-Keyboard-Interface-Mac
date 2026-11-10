@@ -172,7 +172,7 @@ end
 -- F16〜F20 を使い切り、macOS には F21 以降のキーコードが無いため、以降は
 -- Ctrl+Opt+Cmd+F16 のように修飾付きで増やす。上記の不発条件はあるが、
 -- 英数レイヤーのように物理修飾キーを併用しない操作に限れば実害はない
--- (現状は英数+E の ⌃⌥⌘F16 だけで、DownloadsShelf が自前で受けている)。
+-- (英数+E の ⌃⌥⌘F16 は DownloadsShelf が自前で受け、F13+¥ の ⌃⌥⌘F17 は下の撮影)。
 local TRIGGERS = {
     { key = "f16", fn = prevWindow,      desc = "F13+V 直前のウィンドウ" },
     { key = "f17", fn = function() moveToDisplay(0) end,     desc = "F13+1 左ディスプレイ" },
@@ -190,6 +190,18 @@ for _, t in ipairs(TRIGGERS) do
         hs.printf("[trigger] failed to bind %s (%s)", t.key, t.desc)
     end
 end
+
+-- F13+¥ (⌃⌥⌘F17): 範囲を選んで撮影し、~/Downloads への保存とクリップボードの両方に入れる。
+-- macOS 標準の撮影キーは保存先をどちらか一方しか選べないため、screencapture でファイルに撮り、
+-- 撮れた画像をクリップボードにも書く。Esc で取り消すとファイルができず、どちらにも何も残らない
+local function captureToFileAndClipboard()
+    local path = string.format("%s/Downloads/スクリーンショット %s.png", os.getenv("HOME"), os.date("%Y-%m-%d %H.%M.%S"))
+    hs.task.new("/usr/sbin/screencapture", function()
+        local img = hs.image.imageFromPath(path)
+        if img then hs.pasteboard.writeObjects(img) end
+    end, { "-i", path }):start()
+end
+captureHotkey = hs.hotkey.bind({ "ctrl", "alt", "cmd" }, "f17", captureToFileAndClipboard)
 
 -- Chrome: マウスセンターボタン⇔右クリック入れ替え
 -- （トラックパッド対応のため Karabiner ではなく Hammerspoon で処理）

@@ -16,7 +16,7 @@
 //   以前は Hammerspoon が unhide → 窓の出現をポーリング → setFrame していたが、古い位置に一瞬出てから
 //   飛ぶうえに遅かったため、配置してから表示するまでをアプリ内で一度に行う
 // - 起動は Hammerspoon が起動時に裏で行う (常駐)。起動直後は窓を出さない
-// - 一覧は上下に並ぶ「箱」に分かれる。箱ごとに表示する拡張子を指定 (例: "xls, xlsx"、"*" で全部)
+// - 一覧は上下に並ぶ「箱」に分かれる。箱ごとにファイル名の正規表現を指定 (例: "\.xlsx?$"、空欄で全部。大文字小文字は区別しない)
 //   - 箱は見え方だけ。同じファイルが複数の箱に出てよい。指定は入力欄からフォーカスが外れた時点で反映
 //   - 箱は横幅いっぱい・高さはファイル数なり。見出しの ▸ で閉じると見出しだけになる
 //   - タイトルバーの「箱を追加」で追加、見出しの × で削除。「すべて開く / すべて閉じる」もタイトルバーに構成は UserDefaults に保存
@@ -169,16 +169,15 @@ struct Box: Codable {
     var open = true
     var list = false   // true でリスト表示
 
-    // "xls, .xlsx *.mp4" → ["xls","xlsx","mp4"]。"*" を含めば nil (全部)
-    var extensions: Set<String>? {
-        let words = filter.lowercased().split { ", ;、　".contains($0) }.map(String.init)
-        if words.contains("*") { return nil }
-        return Set(words.map { $0.hasPrefix("*.") ? String($0.dropFirst(2)) : $0.hasPrefix(".") ? String($0.dropFirst()) : $0 })
-    }
+    // ファイル名に対する正規表現 (部分一致)。書き方が誤っていれば nil で、その箱には何も出さない
+    var regex: NSRegularExpression? { try? NSRegularExpression(pattern: filter, options: [.caseInsensitive]) }
 
-    func shows(_ url: URL) -> Bool {
-        guard let exts = extensions else { return true }
-        return exts.contains(url.pathExtension.lowercased())
+    func filtered(_ urls: [URL]) -> [URL] {
+        guard let regex else { return [] }
+        return urls.filter {
+            let name = $0.lastPathComponent
+            return regex.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)) != nil
+        }
     }
 }
 
@@ -240,7 +239,7 @@ final class ShelfListItem: NSCollectionViewItem {
     }
 }
 
-// 箱の見出し (Mattermost のサイドバーのカテゴリ見出し風): ▾/▸・拡張子の入力欄・件数・× (ホバー時だけ)
+// 箱の見出し (Mattermost のサイドバーのカテゴリ見出し風): ▾/▸・正規表現の入力欄・件数・× (ホバー時だけ)
 // 入力欄とボタン以外の部分は、クリックで開閉・上下ドラッグで並べ替え
 final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     static let id = NSUserInterfaceItemIdentifier("BoxHeader")
@@ -270,9 +269,9 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         field.focusRingType = .none
         field.font = .systemFont(ofSize: 12, weight: .semibold)
         field.textColor = mmText
-        field.placeholderAttributedString = NSAttributedString(string: "拡張子", attributes: [
+        field.placeholderAttributedString = NSAttributedString(string: "すべて", attributes: [
             .foregroundColor: NSColor.white.withAlphaComponent(0.32), .font: NSFont.systemFont(ofSize: 12, weight: .semibold)])
-        field.toolTip = "表示する拡張子 (例: xls, xlsx)。* で全部"
+        field.toolTip = "表示するファイル名の正規表現 (例: \\.xlsx?$)。空欄で全部。書き方が誤っていると赤字になり何も出ない"
         field.delegate = self
         for line in [divider, bottomLine] {
             line.wantsLayer = true
@@ -340,6 +339,7 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     func configure(_ box: Box, fileCount: Int) {
         boxID = box.id
         if field.currentEditor() == nil { field.stringValue = box.filter }
+        field.textColor = box.regex == nil ? .systemRed : mmText
         toggle.image = NSImage(systemSymbolName: box.open ? "chevron.down" : "chevron.right",
                                accessibilityDescription: box.open ? "閉じる" : "開く")
         count.stringValue = "\(fileCount)"
@@ -398,7 +398,7 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
 final class ShelfCollectionView: NSCollectionView {
     var onOpen: ((IndexPath) -> Void)?
     override func mouseDown(with event: NSEvent) {
-        window?.makeFirstResponder(self)   // 入力欄の編集をここで終わらせる (= 拡張子・検索語の確定)
+        window?.makeFirstResponder(self)   // 入力欄の編集をここで終わらせる (= 正規表現・検索語の確定)
         if event.clickCount == 2, let ip = indexPathForItem(at: convert(event.locationInWindow, from: nil)) {
             onOpen?(ip)
             return
@@ -552,7 +552,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         return false
     }
 
-    // 前のアプリにフォーカスが戻る。編集中の拡張子は隠す前に確定させる
+    // 前のアプリにフォーカスが戻る。編集中の正規表現は隠す前に確定させる
     func hide() {
         endEditing()
         NSApp.hide(nil)
@@ -647,7 +647,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
            let saved = try? JSONDecoder().decode([Box].self, from: data) {
             boxes = saved
         } else {
-            boxes = [Box(filter: "*")]
+            boxes = [Box(filter: "")]
         }
     }
 
@@ -696,7 +696,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         let section = { (n: Int) in Set((0..<n).map { IndexPath(item: $0, section: s) }) }
         let selected = Set(collection.selectionIndexPaths.filter { $0.section == s }.compactMap { url(at: $0) })
         let oldCount = collection.numberOfItems(inSection: s)
-        shown[s] = (boxes[s], searchHits().filter { boxes[s].shows($0) })
+        shown[s] = (boxes[s], boxes[s].filtered(searchHits()))
         let newCount = collectionView(collection, numberOfItemsInSection: s)
         collection.performBatchUpdates({
             collection.deleteItems(at: section(oldCount))
@@ -874,7 +874,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         let hits = searchHits()
         // 選択は番号ではなく (箱, ファイル) で持ち越す。新着や箱の増減で並びがずれても別のファイルへ移らないように
         let selected = Set(collection.selectionIndexPaths.compactMap { ip in url(at: ip).map { "\(shown[ip.section].box.id)/\($0.path)" } })
-        shown = boxes.map { box in (box, hits.filter { box.shows($0) }) }
+        shown = boxes.map { box in (box, box.filtered(hits)) }
         collection.reloadData()
         var restore = Set<IndexPath>()
         for (s, entry) in shown.enumerated() where entry.box.open {

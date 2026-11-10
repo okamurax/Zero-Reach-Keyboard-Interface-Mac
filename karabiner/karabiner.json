@@ -1120,19 +1120,21 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": [
+                                            "^com\\.parallels\\.desktop\\.console$",
+                                            "^com\\.parallels\\.winapp\\."
+                                        ],
+                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+, = < (Shift+comma)",
+                                "description": "F13+. (Parallels) = \\ (Windows の JIS では ¥ キー単押しがバックスラッシュ)",
                                 "from": {
-                                    "key_code": "comma",
+                                    "key_code": "period",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [
-                                    {
-                                        "key_code": "comma",
-                                        "modifiers": ["left_shift"]
-                                    }
-                                ],
+                                "to": [{ "key_code": "international3" }],
                                 "type": "basic"
                             },
                             {
@@ -1143,15 +1145,15 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+. = > (Shift+period)",
+                                "description": "F13+. = \\ (Mac の JIS では Option+¥。¥ 単押しは円記号)",
                                 "from": {
                                     "key_code": "period",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
                                     {
-                                        "key_code": "period",
-                                        "modifiers": ["left_shift"]
+                                        "key_code": "international3",
+                                        "modifiers": ["left_option"]
                                     }
                                 ],
                                 "type": "basic"
@@ -1401,15 +1403,15 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+¥ (JIS:international3) = Cmd+Shift+4 (macOS 範囲指定スクリーンショット)",
+                                "description": "F13+¥ (JIS:international3) = Ctrl+Opt+Cmd+F17 (範囲指定スクリーンショット。HS が撮影し ~/Downloads への保存とクリップボードの両方に入れる)",
                                 "from": {
                                     "key_code": "international3",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [
                                     {
-                                        "key_code": "4",
-                                        "modifiers": ["left_command", "left_shift"]
+                                        "key_code": "f17",
+                                        "modifiers": ["left_control", "left_option", "left_command"]
                                     }
                                 ],
                                 "type": "basic"
