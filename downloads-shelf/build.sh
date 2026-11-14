@@ -17,6 +17,8 @@ fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 cp Info.plist "$APP/Contents/"
+mkdir -p "$APP/Contents/Resources"
+cp -R terminal "$APP/Contents/Resources/"   # ターミナルの画面 (xterm.js)
 swiftc -O -swift-version 5 -o "$APP/Contents/MacOS/DownloadsShelf" DownloadsShelf.swift
 codesign --force --sign "$SIGN_ID" "$APP"
 

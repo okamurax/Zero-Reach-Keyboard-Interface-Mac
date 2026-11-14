@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Terminal</title>
+<!--
+  DownloadsShelf の左上のターミナル (DownloadsShelf.swift の TerminalPane)。WKWebView の中で xterm.js を動かす。
+  Windows 側の Tsuzuri の AI の欄 (Tsuzuri/Terminal/terminal.html) を元にしている。xterm.js とその部品もそこから持ってきた (MIT。LICENSE-xterm.txt)。
+  ・アプリから: feed(base64) で中のシェルの出力を受けて xterm に書く。pasteB64(base64) で貼り付ける。takeSelection() で選んだ文字を返して選択を外す
+  ・アプリへ (webkit.messageHandlers.host): 打った文字 {type:"input"}、大きさ {type:"resize"}、用意ができた {type:"ready"}、
+    押したリンク {type:"link"}、右クリックのコピー {type:"copy"} と貼り付け {type:"paste"}
+  Cmd+C / Cmd+V などのキーの読み替えはアプリ側 (TerminalWebView.performKeyEquivalent)。
+-->
+<link rel="stylesheet" href="xterm.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #111a28; overflow: hidden; }
+  #terminal { position: absolute; inset: 8px 4px 6px 10px; }
+  .xterm .xterm-viewport { background-color: #111a28 !important; }
+  .xterm-viewport::-webkit-scrollbar { width: 8px; }
+  .xterm-viewport::-webkit-scrollbar-thumb { background: #3A4255; border-radius: 4px; }
+  .xterm-viewport::-webkit-scrollbar-thumb:hover { background: #4E576B; }
+
+  /* 日本語の変換中の文字。Claude Code は本物のカーソルを隠して入力欄に自前のカーソルを描くので、
+     そのままだと変換中の文字と候補の窓が見当違いの所に出る。入力欄の行が見つかればその後ろ、無ければ欄の下端に出す (Tsuzuri と同じ)。 */
+  .xterm .composition-view { background: #20283A !important; color: #DDDFE4 !important; padding: 0; border: 0; outline: 1px solid #4A7CE8; }
+  #terminal.ime-docked .xterm .composition-view { position: fixed !important; left: 12px !important; top: auto !important; bottom: 10px !important; z-index: 10; }
+  #terminal.ime-docked .xterm .xterm-helper-textarea { position: fixed !important; left: 12px !important; top: auto !important; bottom: 10px !important; }
+  #terminal.ime-anchored .xterm .composition-view,
+  #terminal.ime-anchored .xterm .xterm-helper-textarea { left: var(--ime-left) !important; top: var(--ime-top) !important; bottom: auto !important; }
+</style>
+</head>
+<body>
+<div id="terminal"></div>
+<script src="xterm.js"></script>
+<script src="addon-fit.js"></script>
+<script src="addon-unicode11.js"></script>
+<script src="addon-webgl.js"></script>
+<script>
+  const host = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.host;
+  const send = (message) => { if (host) host.postMessage(message); };
+
+  const term = new Terminal({
+    fontFamily: "Menlo, 'Hiragino Sans', monospace",
+    fontSize: 13,
+    lineHeight: 1.15,
+    cursorBlink: true,
+    cursorStyle: 'bar',
+    cursorWidth: 2,
+    cursorInactiveStyle: 'none',   // キーボードが無いときは出さない (打つ先がシェルフか端末かを見分けられるように)
+    allowProposedApi: true,        // 文字の幅の表 (Unicode 11) を使うのに要る
+    scrollback: 10000,
+    // 端末の中のリンク (OSC 8。Claude Code が出す) は、ページでは開かずアプリに頼んで既定のブラウザで開く
+    linkHandler: {
+      activate: (event, text) => send({ type: 'link', url: text }),
+      allowNonHttpProtocols: false
+    },
+    theme: {
+      background: '#111a28',
+      foreground: '#DDDFE4',
+      cursor: '#DDDFE4',
+      cursorAccent: '#111a28',
+      selectionBackground: '#26457A',
+      black: '#111a28',  red: '#D24B4E',  green: '#3DB887',  yellow: '#F5AB00',
+      blue: '#4A7CE8',   magenta: '#B07CE8', cyan: '#3FB5C9', white: '#DDDFE4',
+      brightBlack: '#525863', brightRed: '#E06C6E', brightGreen: '#5FD3A0', brightYellow: '#FFC94D',
+      brightBlue: '#5D89EA',  brightMagenta: '#C79AF0', brightCyan: '#6CCFE0', brightWhite: '#FFFFFF'
+    }
+  });
+
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.loadAddon(new Unicode11Addon.Unicode11Addon());
+  term.unicode.activeVersion = '11';   // 日本語・絵文字の幅
+
+  term.open(document.getElementById('terminal'));
+
+  // 描くのは WebGL (Claude Code が打つたびに入力欄を描き直しても、ちらつかない)。使えなければ既定の DOM の描き方
+  try {
+    const webgl = new WebglAddon.WebglAddon();
+    webgl.onContextLoss(() => webgl.dispose());
+    term.loadAddon(webgl);
+  } catch (e) { }
+
+  fit.fit();
+
+  if (term.textarea) {
+    term.textarea.setAttribute('autocomplete', 'off');
+    term.textarea.setAttribute('autocorrect', 'off');
+    term.textarea.setAttribute('autocapitalize', 'off');
+    term.textarea.spellcheck = false;
+  }
+
+  // Shift+Enter は改行 (ESC CR)。Claude Code の /terminal-setup が VS Code に設定するのと同じ
+  term.attachCustomKeyEventHandler((e) => {
+    if (e.key === 'Enter' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      if (e.type === 'keydown') send({ type: 'input', data: '\x1b\r' });
+      return false;
+    }
+    return true;
+  });
+
+  // 右クリックは Windows Terminal と同じ: 選んでいればコピー、選んでいなければ貼り付け
+  document.getElementById('terminal').addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (term.hasSelection()) {
+      send({ type: 'copy', text: term.getSelection() });
+      term.clearSelection();
+    } else {
+      send({ type: 'paste' });
+    }
+    term.focus();
+  });
+
+  // ---- 日本語の変換中の文字の置き場所 (Tsuzuri と同じ) ----
+  const container = document.getElementById('terminal');
+  const cursorHidden = () => { try { return !!term._core.coreService.isCursorHidden; } catch (e) { return false; } };
+  const isPromptLine = (text) => /^\s*│?\s*[>❯›]\s/.test(text) && !/^\s*│?\s*[>❯›]\s+\d+\.\s/.test(text);
+  const isMenuLine = (text) => /^\s*│?\s*[>❯›]\s+\d+\.\s/.test(text);
+  const isRuleLine = (text) => /^\s*[╭╰├─━]{3,}/.test(text);
+
+  const inputEnd = (line, from) => {
+    let end = from;
+    for (let x = from; x < term.cols; x++) {
+      const cell = line.getCell(x);
+      if (!cell) break;
+      const chars = cell.getChars();
+      if (chars && chars.trim() && chars !== '│' && !cell.isDim()) end = x + Math.max(1, cell.getWidth());
+    }
+    return end;
+  };
+
+  const imeAnchor = () => {
+    try {
+      const buffer = term.buffer.active;
+      if (buffer.viewportY !== buffer.baseY) term.scrollToBottom();
+      const screen = term.element.querySelector('.xterm-screen');
+      if (!screen) return null;
+      const rect = screen.getBoundingClientRect();
+      const cellWidth = rect.width / term.cols, cellHeight = rect.height / term.rows;
+      const textOf = (row) => { const line = buffer.getLine(buffer.baseY + row); return line ? line.translateToString(true) : ''; };
+      for (let row = term.rows - 1; row >= 0; row--) {
+        const text = textOf(row);
+        if (isMenuLine(text)) return null;
+        if (!isPromptLine(text)) continue;
+        let last = row;
+        while (last + 1 < term.rows) {
+          const next = textOf(last + 1);
+          if (!next.trim() || isRuleLine(next) || isPromptLine(next)) break;
+          last++;
+        }
+        const line = buffer.getLine(buffer.baseY + last);
+        const from = last === row ? /^(\s*│?\s*)[>❯›]\s/.exec(text)[0].length : 0;
+        const end = inputEnd(line, from);
+        return { left: rect.left + Math.min(end, term.cols - 2) * cellWidth, top: rect.top + last * cellHeight };
+      }
+    } catch (e) { }
+    return null;
+  };
+
+  const placeIme = () => {
+    const hidden = cursorHidden();
+    const anchor = hidden ? imeAnchor() : null;
+    if (anchor) {
+      container.style.setProperty('--ime-left', anchor.left + 'px');
+      container.style.setProperty('--ime-top', anchor.top + 'px');
+    }
+    container.classList.toggle('ime-docked', hidden);
+    container.classList.toggle('ime-anchored', !!anchor);
+  };
+
+  if (term.textarea) {
+    term.textarea.addEventListener('compositionstart', placeIme);
+    term.textarea.addEventListener('compositionupdate', placeIme);
+    term.textarea.addEventListener('compositionend', () => {
+      setTimeout(() => container.classList.remove('ime-docked', 'ime-anchored'), 0);
+    });
+  }
+
+  term.onData((data) => send({ type: 'input', data: data }));
+  term.onResize((size) => send({ type: 'resize', cols: size.cols, rows: size.rows }));
+  new ResizeObserver(() => { try { fit.fit(); } catch (e) { } }).observe(container);
+
+  const bytesOf = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  window.feed = (b64) => term.write(bytesOf(b64));
+  window.pasteB64 = (b64) => { term.paste(new TextDecoder().decode(bytesOf(b64))); term.focus(); };
+  window.takeSelection = () => {
+    if (!term.hasSelection()) return '';
+    const text = term.getSelection();
+    term.clearSelection();
+    return text;
+  };
+
+  send({ type: 'ready', cols: term.cols, rows: term.rows });
+</script>
+</body>
+</html>

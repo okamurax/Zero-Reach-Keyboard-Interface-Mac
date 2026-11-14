@@ -1,9 +1,11 @@
-// ~/Downloads をサムネイルで並べ、他アプリへドラッグで渡すための置き場。
+// ~/Downloads と Dropbox のカメラアップロードをサムネイルで並べ、他アプリへドラッグで渡すための置き場。
+// 2つのフォルダは区別せず1つの一覧にまとめる (箱の正規表現もファイル名だけに当てる)。
 // Finder の窓状態 (ツールバー/サイドバー非表示) は次に開く Finder 窓へ引き継がれるため、
 // 見た目を Finder と切り離す目的で専用アプリにしている。
 // - 新しい順 (追加日) に並べ、フォルダの変更を監視して自動更新する
 // - ドラッグは file URL を渡す。外へのドラッグは常にコピー (Finder 窓へ落としても移動にならず、Dock のゴミ箱へ落としても消えない)
 // - ダブルクリックで既定アプリで開く。Esc / 閉じるボタンでアプリごと隠す
+// - 窓の左の列: 上半分は Claude Code などを動かすターミナル (TerminalPane)、下半分は選んだファイルのプレビュー
 // - 名前の下にファイルサイズ (Finder と同じ表記)
 // - 名前は文字単位で折り返す (サムネイル 3 行・リスト 2 行まで)。それでも入らない長い名前だけ真ん中を … で詰め、
 //   ホバーでフルネームを出す
@@ -12,7 +14,7 @@
 //   (Esc 取り消しでも消える・ハイライトが一瞬で消える等) 撤去した
 // - 英数+E (Karabiner が ⌃⌥⌘F16 を送る) を自前の Carbon ホットキーで受ける。普通の窓なので他の窓の後ろにも回る
 //   - 手前にある → 隠す / 後ろにある → 手前に出す (位置はそのまま)
-//   - 隠れている → カーソルのある画面の右端 (幅 1/3・自作タスクバーを除いた全高) に置いてから出す
+//   - 隠れている → 一番右の画面の右端 (幅は左の列 6 列分・シェルフ 4 列分・自作タスクバーを除いた全高) に置いてから出す
 //   以前は Hammerspoon が unhide → 窓の出現をポーリング → setFrame していたが、古い位置に一瞬出てから
 //   飛ぶうえに遅かったため、配置してから表示するまでをアプリ内で一度に行う
 // - 起動は Hammerspoon が起動時に裏で行う (常駐)。起動直後は窓を出さない
@@ -25,13 +27,18 @@
 //   - 箱ごとにサムネイル / リスト表示を切り替えられる (見出しの右のボタン)
 //   - 見出しをクリックで開閉、上下にドラッグで並べ替え (入力欄・ボタン以外の部分)
 // - 配色は Mattermost のサイドバー (既定テーマ Denim、背景はより濃く) に寄せている。ライト/ダークに関係なく固定
-// ゴミ箱へ移す以外のファイル操作 (リネーム等) は持たない (Finder に任せる)。
+// - 選択が 1 つの時、Enter かタイトルバーの「名前を変更」で名前を変える (手順は rename(_:to:) の説明)
+// ゴミ箱へ移す・名前の変更以外のファイル操作は持たない (Finder に任せる)。
 
 import AppKit
 import Carbon.HIToolbox
 import QuickLookThumbnailing
+import Quartz   // QLPreviewView (左下のプレビュー欄)
+import WebKit   // ターミナルの画面 (xterm.js)
 
-let downloadsURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads")
+let home = FileManager.default.homeDirectoryForCurrentUser
+let downloadsURL = home.appendingPathComponent("Downloads")
+let folderURLs = [downloadsURL, home.appendingPathComponent("Library/CloudStorage/Dropbox/カメラアップロード")]
 let thumbSize = CGSize(width: 96, height: 96)
 // 自作タスクバー (hammerspoon/taskbar.lua の BAR_H=43) + 窓との隙間 (init.lua の TASKBAR_GAP=8)
 let taskbarInset: CGFloat = 43 + 8
@@ -41,6 +48,8 @@ let mmSidebar = NSColor(srgbRed: 0x11 / 255.0, green: 0x1a / 255.0, blue: 0x28 /
 let mmAccent = NSColor(srgbRed: 0x5d / 255.0, green: 0x89 / 255.0, blue: 0xea / 255.0, alpha: 1)
 let mmText = NSColor.white.withAlphaComponent(0.64)   // 見出し・非アクティブ文字
 let mmHover = NSColor.white.withAlphaComponent(0.08)
+// 箱の見出しの地。Denim 本来のサイドバー色で、背景より一段明るくして箱の切れ目を見失わないようにする
+let mmHeader = NSColor(srgbRed: 0x1e / 255.0, green: 0x32 / 255.0, blue: 0x5c / 255.0, alpha: 1)
 
 // 名前の折り返し (文字単位) と、行数制限を超える時の真ん中省略
 let thumbNameFont = NSFont.systemFont(ofSize: 11)
@@ -168,16 +177,27 @@ struct Box: Codable {
     var filter: String
     var open = true
     var list = false   // true でリスト表示
+    var byName = false     // 並び: true で名前順、false で追加日順
+    var ascending = false  // true で昇順 (名前は A→Z、日付は古い順)
 
     // ファイル名に対する正規表現 (部分一致)。書き方が誤っていれば nil で、その箱には何も出さない
     var regex: NSRegularExpression? { try? NSRegularExpression(pattern: filter, options: [.caseInsensitive]) }
 
+    // 受け取る urls は新しい順。それを箱の並びに並べ直して返す
     func filtered(_ urls: [URL]) -> [URL] {
         guard let regex else { return [] }
-        return urls.filter {
+        var hits = urls.filter {
             let name = $0.lastPathComponent
             return regex.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)) != nil
         }
+        if byName {
+            // Finder と同じ比較 (数字は数として、大文字小文字・全角半角は区別しない)
+            hits.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            if !ascending { hits.reverse() }
+        } else if ascending {
+            hits.reverse()
+        }
+        return hits
     }
 }
 
@@ -239,7 +259,7 @@ final class ShelfListItem: NSCollectionViewItem {
     }
 }
 
-// 箱の見出し (Mattermost のサイドバーのカテゴリ見出し風): ▾/▸・正規表現の入力欄・件数・× (ホバー時だけ)
+// 箱の見出し (Mattermost のサイドバーのカテゴリ見出し風): ▾/▸・正規表現の入力欄 | 件数 … 名前/日付・表示切替 … ゴミ箱・×
 // 入力欄とボタン以外の部分は、クリックで開閉・上下ドラッグで並べ替え
 final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     static let id = NSUserInterfaceItemIdentifier("BoxHeader")
@@ -251,6 +271,8 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     let remove = NSButton()
     let mode = NSButton()   // サムネイル / リスト切替
     let trash = NSButton()  // 箱に見えているファイルを全部ゴミ箱へ
+    let sortName = NSButton()   // 名前順。並び中に押すと昇順/降順の切替
+    let sortDate = NSButton()   // 追加日順。同上
     var boxID: UUID?
     weak var owner: AppDelegate?
 
@@ -258,6 +280,7 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         super.init(frame: frame)
         wantsLayer = true
         layer?.cornerRadius = 4
+        layer?.backgroundColor = mmHeader.cgColor
         let symbol = NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
         toggle.isBordered = false
         toggle.contentTintColor = mmText
@@ -283,7 +306,6 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         remove.symbolConfiguration = symbol
         remove.contentTintColor = mmText
         remove.isBordered = false
-        remove.isHidden = true
         remove.toolTip = "この箱を削除 (ファイルは消えない)"
         remove.target = self
         remove.action = #selector(removeTapped)
@@ -291,7 +313,6 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         trash.symbolConfiguration = symbol
         trash.contentTintColor = mmText
         trash.isBordered = false
-        trash.isHidden = true
         trash.toolTip = "この箱に見えているファイルを全部ゴミ箱に入れる"
         trash.target = self
         trash.action = #selector(trashTapped)
@@ -300,11 +321,17 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         mode.isBordered = false
         mode.target = self
         mode.action = #selector(modeTapped)
-        for v in [bottomLine, toggle, field, divider, count, trash, mode, remove] as [NSView] {
+        for (b, action) in [(sortName, #selector(sortNameTapped)), (sortDate, #selector(sortDateTapped))] {
+            b.isBordered = false
+            b.target = self
+            b.action = action
+        }
+        sortName.toolTip = "名前順にする (名前順の時は昇順/降順の切替)"
+        sortDate.toolTip = "追加日順にする (日付順の時は新しい順/古い順の切替)"
+        for v in [bottomLine, toggle, field, divider, sortName, sortDate, count, trash, mode, remove] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             addSubview(v)
         }
-        count.setContentCompressionResistancePriority(.required, for: .horizontal)
         NSLayoutConstraint.activate([bottomLine.leadingAnchor.constraint(equalTo: leadingAnchor),
                                      bottomLine.trailingAnchor.constraint(equalTo: trailingAnchor),
                                      bottomLine.heightAnchor.constraint(equalToConstant: 1)])
@@ -314,6 +341,7 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
             toggle.widthAnchor.constraint(equalToConstant: 16),
             field.leadingAnchor.constraint(equalTo: toggle.trailingAnchor, constant: 4),
             divider.leadingAnchor.constraint(equalTo: field.trailingAnchor, constant: 4),
+            count.leadingAnchor.constraint(equalTo: divider.trailingAnchor, constant: 8),
             divider.centerYAnchor.constraint(equalTo: centerYAnchor),
             divider.widthAnchor.constraint(equalToConstant: 1),
             divider.heightAnchor.constraint(equalToConstant: 14),
@@ -321,11 +349,15 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
             field.centerYAnchor.constraint(equalTo: centerYAnchor),
             // 固定幅にして、右側の空きを掴める場所として残す (編集可能な欄は文字幅を持たないので広がってしまう)
             field.widthAnchor.constraint(equalToConstant: 120),
-            count.trailingAnchor.constraint(equalTo: trash.leadingAnchor, constant: -8),
-            trash.trailingAnchor.constraint(equalTo: mode.leadingAnchor, constant: -6),
+            sortName.trailingAnchor.constraint(equalTo: sortDate.leadingAnchor, constant: -8),
+            sortName.centerYAnchor.constraint(equalTo: centerYAnchor),
+            sortDate.trailingAnchor.constraint(equalTo: mode.leadingAnchor, constant: -10),
+            sortDate.centerYAnchor.constraint(equalTo: centerYAnchor),
+            // 消す操作 (ゴミ箱・×) は間を空けて右端に寄せ、表示の操作と押し間違えないようにする
+            mode.trailingAnchor.constraint(equalTo: trash.leadingAnchor, constant: -22),
+            trash.trailingAnchor.constraint(equalTo: remove.leadingAnchor, constant: -6),
             trash.centerYAnchor.constraint(equalTo: centerYAnchor),
             trash.widthAnchor.constraint(equalToConstant: 16),
-            mode.trailingAnchor.constraint(equalTo: remove.leadingAnchor, constant: -6),
             mode.centerYAnchor.constraint(equalTo: centerYAnchor),
             mode.widthAnchor.constraint(equalToConstant: 18),
             count.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -333,6 +365,8 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
             remove.centerYAnchor.constraint(equalTo: centerYAnchor),
             remove.widthAnchor.constraint(equalToConstant: 16),
         ])
+        // 右のボタンは押せる範囲を見出しの高さいっぱいにする (絵の大きさだけだと、少し上下に外れると見出しの開閉になる)
+        for b in [sortName, sortDate, trash, mode, remove] { b.heightAnchor.constraint(equalTo: heightAnchor).isActive = true }
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -347,6 +381,15 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         mode.image = NSImage(systemSymbolName: box.list ? "square.grid.2x2" : "list.bullet",
                              accessibilityDescription: box.list ? "サムネイル表示にする" : "リスト表示にする")
         mode.toolTip = box.list ? "サムネイル表示にする" : "リスト表示にする"
+        // 今の並びの方だけ明るくして矢印を付ける
+        func title(_ b: NSButton, _ text: String, active: Bool) {
+            let arrow = active ? (box.ascending ? " ↑" : " ↓") : ""
+            b.attributedTitle = NSAttributedString(string: text + arrow, attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: active ? .semibold : .regular),
+                .foregroundColor: active ? mmText : NSColor.white.withAlphaComponent(0.32)])
+        }
+        title(sortName, "名前", active: box.byName)
+        title(sortDate, "日付", active: !box.byName)
     }
 
     // 全体の作り直しで別の箱用に使い回される時だけ、前の箱のホバー表示を消す
@@ -361,7 +404,7 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     }
     // 入力欄とボタンの間の空き (= 掴んで並べ替える所) では手のひらのカーソルにする
     override func resetCursorRects() {
-        addCursorRect(NSRect(x: divider.frame.maxX, y: 0, width: max(0, count.frame.minX - divider.frame.maxX),
+        addCursorRect(NSRect(x: divider.frame.maxX, y: 0, width: max(0, sortName.frame.minX - divider.frame.maxX),
                              height: bounds.height), cursor: .openHand)
     }
 
@@ -374,17 +417,19 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     override func mouseEntered(with event: NSEvent) { setHover(true) }
     override func mouseExited(with event: NSEvent) { setHover(false) }
     func setHover(_ on: Bool) {
-        layer?.backgroundColor = on ? mmHover.cgColor : nil
-        remove.isHidden = !on
-        trash.isHidden = !on
+        layer?.backgroundColor = (on ? mmHeader.blended(withFraction: 0.08, of: .white)! : mmHeader).cgColor
     }
 
+    // 並び替えボタンから右 (ボタンの並ぶ所) は、ボタンの隙間を押しても開閉・並べ替えにしない
     override func mouseDown(with event: NSEvent) {
+        if convert(event.locationInWindow, from: nil).x >= sortName.frame.minX { return }
         if let boxID { owner?.trackHeaderDrag(boxID, header: self, down: event) }
     }
 
     @objc func toggleTapped() { if let boxID { owner?.toggleBox(boxID) } }
     @objc func modeTapped() { if let boxID { owner?.toggleListMode(boxID) } }
+    @objc func sortNameTapped() { if let boxID { owner?.setSort(boxID, byName: true) } }
+    @objc func sortDateTapped() { if let boxID { owner?.setSort(boxID, byName: false) } }
     @objc func trashTapped() { if let boxID { owner?.trashBox(boxID) } }
     @objc func removeTapped() { if let boxID { owner?.removeBox(boxID) } }
     // Enter・Tab・別の場所のクリックのどれでも来る (確定ボタンは置かない)
@@ -397,6 +442,11 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
 // - アイテム外の余白: 標準どおり (クリックで選択解除・ドラッグで範囲選択)
 final class ShelfCollectionView: NSCollectionView {
     var onOpen: ((IndexPath) -> Void)?
+    var onReturn: (() -> Void)?
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == UInt16(kVK_Return) || event.keyCode == UInt16(kVK_ANSI_KeypadEnter) { onReturn?(); return }
+        super.keyDown(with: event)
+    }
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)   // 入力欄の編集をここで終わらせる (= 正規表現・検索語の確定)
         if event.clickCount == 2, let ip = indexPathForItem(at: convert(event.locationInWindow, from: nil)) {
@@ -409,7 +459,265 @@ final class ShelfCollectionView: NSCollectionView {
 
 // 通常の窓 (信号機ボタンは Finder と同じ 3 つ)。utility パネルだとボタンが小さい別物になるため使わない
 final class ShelfWindow: NSWindow {
-    override func cancelOperation(_ sender: Any?) { (NSApp.delegate as? AppDelegate)?.hide() }
+    // Esc で隠す。ただしターミナルで打った Esc は中のプログラム (Claude Code の中断など) のものなので隠さない
+    override func cancelOperation(_ sender: Any?) {
+        if firstResponder is TerminalWebView { return }
+        (NSApp.delegate as? AppDelegate)?.hide()
+    }
+}
+
+// 左の列の幅。シェルフのサムネイル (枠 96+16) 6 個分
+let leftWidth = 6 * (thumbSize.width + 16) + 5 * 4 + 12
+
+// MARK: - ターミナル (左の列の上半分)
+// Claude Code を動かすための端末。画面は WKWebView の中の xterm.js (terminal/。VS Code の端末と同じもの。
+// Windows 側の Tsuzuri の AI の欄と同じ作り)。中のシェルとは疑似端末 (forkpty) でつなぐ。
+// - ~/Downloads でログインシェル (zsh -l -i) を起動し、すぐに claude を動かす。PATH 等は .zprofile / .zshrc のとおり
+//   claude を終えると普通のシェルになる (exec で同じ場所のログインシェルに替わる)
+// - claude には Tsuzuri と同じく、起動時に「ここがどこか」の指示 (--append-system-prompt-file) を、話しかけるたびに
+//   「今の状態」(プレビュー中のファイルのパス) をフック (UserPromptSubmit) で渡す。ファイルは ClaudeContext を参照
+// - 窓を隠しても動き続ける。シェルが終わったら、次にキーを押した時に起動し直す (また claude から)
+// - キー: Karabiner で物理 Ctrl が Cmd になっているので、Windows Terminal と同じ感覚になるよう Cmd を読み替える
+//   - Cmd+C: 選んでいればコピー、選んでいなければ中断 (^C)。Cmd+V: 貼り付け (画像だけなら ^V を送り Claude Code が自分で読む)
+//   - ほかの Cmd+英字は Ctrl+英字として送る。Cmd+Backspace は直前の 1 単語を消す (^W)
+//   - Shift+Enter は改行 (ESC CR。Claude Code の /terminal-setup が VS Code に設定するのと同じ)
+// - シェルフや Finder からファイルを落とすと、そのパスを貼り付ける (Claude Code に画像や資料を渡せる)
+// - 端末の中のリンクは既定のブラウザで開く。ページ自体はよそへ移動させない
+// claude に渡すファイル。~/Library/Application Support/local.zero-reach.downloads-shelf/ に置く。
+// 指示と設定 (フック) は起動のたびに書き直し、今の状態はプレビューが変わるたびに書き直す (フックは cat するだけ)
+enum ClaudeContext {
+    static let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("local.zero-reach.downloads-shelf")
+    static let instructions = dir.appendingPathComponent("instructions.md")
+    static let settings = dir.appendingPathComponent("settings.json")
+    static let state = dir.appendingPathComponent("state.md")
+
+    // シェルの引用符で囲む
+    static func quote(_ path: String) -> String { "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+
+    // claude の起動コマンド (シェルの -c に渡す)
+    static var command: String {
+        "claude --settings \(quote(settings.path)) --append-system-prompt-file \(quote(instructions.path))"
+    }
+
+    static func prepare() {
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let folders = folderURLs.map { "  - " + $0.path }.joined(separator: "\n")
+        let text = """
+            # DownloadsShelf のターミナル
+            あなた (Claude Code) は、利用者が自作した Mac アプリ DownloadsShelf の窓の左上にあるターミナルで動いている。
+            - DownloadsShelf は、次のフォルダのファイルをサムネイルで並べる置き場 (2つのフォルダは区別せず1つの一覧)。作業フォルダは ~/Downloads
+            \(folders)
+            - 窓の左下はプレビュー欄。利用者がシェルフで選んだファイル 1 つの中身を表示している
+            - 話しかけられるたびに「DownloadsShelf の今の状態」が添えられ、プレビュー中のファイルのフルパスが書いてある
+            - 利用者が「これ」「このファイル」「プレビューの」などと言ったら、そのファイルのこと。話がそのファイルに関係なければ触れなくてよい
+            - ファイルをこのターミナルに落とすと、そのパスが貼り付けられる
+            - ファイルを消す・移す・上書きする前は、利用者に確かめる (ダウンロードしたものは原本しか無いことが多い)
+
+            """
+        try? text.write(to: instructions, atomically: true, encoding: .utf8)
+        let hook: [String: Any] = ["hooks": ["UserPromptSubmit": [["hooks": [["type": "command", "command": "cat " + quote(state.path)]]]]]]
+        try? JSONSerialization.data(withJSONObject: hook, options: [.prettyPrinted, .withoutEscapingSlashes]).write(to: settings, options: .atomic)
+    }
+
+    static func write(preview url: URL?) {
+        var text = "# DownloadsShelf の今の状態 (話しかけた時点)\n"
+        if let url {
+            let v = try? url.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
+            let size = v?.isDirectory == true ? "フォルダ"
+                : v?.fileSize.map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "?"
+            text += "プレビュー中のファイル: \(url.path) (\(size))\n"
+        } else {
+            text += "プレビュー中のファイルは無い (何も選んでいないか、複数選んでいる)\n"
+        }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? text.write(to: state, atomically: true, encoding: .utf8)
+    }
+}
+
+final class TerminalWebView: WKWebView {
+    weak var pane: TerminalPane?
+
+    override func performKeyEquivalent(with e: NSEvent) -> Bool {
+        guard window?.firstResponder === self, let pane,
+              e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting(.capsLock) == .command
+        else { return super.performKeyEquivalent(with: e) }
+        if e.keyCode == UInt16(kVK_Delete) { pane.send("\u{17}"); return true }
+        guard let ch = e.charactersIgnoringModifiers?.lowercased(), ch.count == 1,
+              let a = ch.unicodeScalars.first, a.value >= 0x61, a.value <= 0x7a
+        else { return super.performKeyEquivalent(with: e) }
+        switch ch {
+        case "c": pane.copyOrInterrupt()
+        case "v": pane.paste()
+        default: pane.send(String(UnicodeScalar(a.value - 0x60)!))
+        }
+        return true
+    }
+
+    override func draggingEntered(_ info: NSDraggingInfo) -> NSDragOperation { fileURLs(info).isEmpty ? [] : .copy }
+    override func draggingUpdated(_ info: NSDraggingInfo) -> NSDragOperation { fileURLs(info).isEmpty ? [] : .copy }
+    override func prepareForDragOperation(_ info: NSDraggingInfo) -> Bool { !fileURLs(info).isEmpty }
+    override func performDragOperation(_ info: NSDraggingInfo) -> Bool {
+        let urls = fileURLs(info)
+        guard !urls.isEmpty else { return false }
+        // シェルの引用符で囲む ('...'。中の ' は '\'' に)
+        pane?.pasteText(urls.map { "'" + $0.path.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(separator: " ") + " ")
+        window?.makeFirstResponder(self)
+        return true
+    }
+    func fileURLs(_ info: NSDraggingInfo) -> [URL] {
+        info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+    }
+}
+
+final class TerminalPane: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    let view: TerminalWebView
+    var fd: Int32 = -1
+    var pid: pid_t = 0
+    var reader: DispatchSourceRead?
+    var pending = Data()      // xterm へまだ渡していない出力
+    var feeding = false       // xterm へ渡している最中 (その間に届いた分はまとめて次に渡す)
+    var size = winsize(ws_row: 24, ws_col: 80, ws_xpixel: 0, ws_ypixel: 0)
+
+    override init() {
+        let config = WKWebViewConfiguration()
+        view = TerminalWebView(frame: .zero, configuration: config)
+        super.init()
+        view.pane = self
+        view.configuration.userContentController.add(self, name: "host")
+        view.navigationDelegate = self
+        view.setValue(false, forKey: "drawsBackground")   // 読み込み中に白く光らない
+        if let page = Bundle.main.url(forResource: "terminal", withExtension: "html", subdirectory: "terminal") {
+            view.loadFileURL(page, allowingReadAccessTo: page.deletingLastPathComponent())
+        }
+    }
+
+    // ページの外へは移動しない (リンクは linkHandler 経由で既定のブラウザへ)
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        decisionHandler(action.request.url?.isFileURL == true && action.targetFrame?.isMainFrame == true ? .allow : .cancel)
+    }
+
+    func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let m = message.body as? [String: Any], let type = m["type"] as? String else { return }
+        switch type {
+        case "ready", "resize":
+            if let c = m["cols"] as? Int, let r = m["rows"] as? Int {
+                size.ws_col = UInt16(c)
+                size.ws_row = UInt16(r)
+                if fd >= 0 { _ = ioctl(fd, UInt(0x80087467), &size) }   // TIOCSWINSZ
+            }
+            if type == "ready" && fd < 0 { start() }
+        case "input":
+            if let d = m["data"] as? String { send(d) }
+        case "copy":
+            if let t = m["text"] as? String, !t.isEmpty { copy(t) }
+        case "paste":
+            paste()
+        case "link":
+            if let s = m["url"] as? String, let u = URL(string: s), ["http", "https"].contains(u.scheme ?? "") {
+                NSWorkspace.shared.open(u)
+            }
+        default: break
+        }
+    }
+
+    func start() {
+        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        ClaudeContext.prepare()
+        var env = ProcessInfo.processInfo.environment
+        env["TERM"] = "xterm-256color"
+        env["COLORTERM"] = "truecolor"
+        if env["LANG"] == nil { env["LANG"] = "ja_JP.UTF-8" }   // open で起動したアプリには LANG が無く、日本語が化ける
+        // fork 後の子では Swift の確保をしないよう、渡す文字列は先に C の文字列にしておく
+        // 先頭の - でログインシェル。-i で .zshrc も読む (claude の PATH や別名が効く)
+        let argv: [UnsafeMutablePointer<CChar>?] = [strdup("-" + (shell as NSString).lastPathComponent), strdup("-i"), strdup("-c"),
+                                                    strdup(ClaudeContext.command + "; exec \"$SHELL\" -l"), nil]
+        let envp: [UnsafeMutablePointer<CChar>?] = env.map { strdup("\($0.key)=\($0.value)") } + [nil]
+        let path = strdup(shell)!, dir = strdup(downloadsURL.path)!
+        defer { (argv + envp).forEach { free($0) }; free(path); free(dir) }
+        var master: Int32 = -1
+        let child = forkpty(&master, nil, nil, &size)
+        if child == 0 {
+            chdir(dir)
+            execve(path, argv, envp)
+            _exit(127)
+        }
+        guard child > 0 else { return }
+        pid = child
+        fd = master
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+        let src = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
+        src.setEventHandler { [weak self] in self?.readOutput() }
+        src.resume()
+        reader = src
+    }
+
+    func readOutput() {
+        var buf = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let n = read(fd, &buf, buf.count)
+            if n > 0 { pending.append(contentsOf: buf[0..<n]); continue }
+            if n < 0 && errno == EAGAIN { break }
+            ended()   // 0 か EIO: シェルが終わった
+            break
+        }
+        feed()
+    }
+
+    func ended() {
+        reader?.cancel()
+        reader = nil
+        close(fd)
+        fd = -1
+        var status: Int32 = 0
+        waitpid(pid, &status, 0)
+        pending.append(contentsOf: Array("\r\n[シェルが終了しました。キーを押すと起動し直します]\r\n".utf8))
+    }
+
+    // 出力は base64 で渡す (xterm がバイト列として受け、UTF-8 の文字の途中で切れても正しくつなぐ)
+    func feed() {
+        guard !feeding, !pending.isEmpty else { return }
+        feeding = true
+        let chunk = pending.base64EncodedString()
+        pending.removeAll()
+        view.evaluateJavaScript("feed('\(chunk)')") { [weak self] _, _ in
+            self?.feeding = false
+            self?.feed()
+        }
+    }
+
+    func send(_ s: String) {
+        guard fd >= 0 else { start(); return }   // シェルが終わっていたら、キーを押した時に起動し直す
+        let bytes = Array(s.utf8)
+        var off = 0
+        while off < bytes.count {
+            let n = bytes[off...].withUnsafeBufferPointer { write(fd, $0.baseAddress, $0.count) }
+            if n > 0 { off += n } else if errno != EAGAIN { break }
+        }
+    }
+
+    func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    func copyOrInterrupt() {
+        view.evaluateJavaScript("takeSelection()") { [weak self] r, _ in
+            if let t = r as? String, !t.isEmpty { self?.copy(t) } else { self?.send("\u{03}") }
+        }
+    }
+
+    func paste() {
+        let pb = NSPasteboard.general
+        if let t = pb.string(forType: .string), !t.isEmpty { pasteText(t) }
+        else if pb.canReadObject(forClasses: [NSImage.self], options: nil) { send("\u{16}") }   // 画像は Claude Code が ^V で自分で読む
+    }
+
+    // xterm の貼り付けを通す (中のプログラムが求めていれば貼り付けの印で囲む)
+    func pasteText(_ t: String) {
+        view.evaluateJavaScript("pasteB64('\(Data(t.utf8).base64EncodedString())')")
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout, NSWindowDelegate, NSTextFieldDelegate {
@@ -424,12 +732,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
     let searchField = NSTextField()
     var clearButton: NSButton!
     var trashButton: NSButton!
+    var renameButton: NSButton!
+    var selectAfterReload: URL?   // 名前を変えたファイル。次の再読込で選択し直す
     var sizes: [URL: String] = [:]
     var thumbs: [URL: NSImage] = [:]   // キーは path+更新日時を含めたい所だが、上書きダウンロードは稀なので URL で十分
-    var watcher: DispatchSourceFileSystemObject?
+    var watchers: [DispatchSourceFileSystemObject] = []
     var reloadPending = false
+    let terminal = TerminalPane()
+    let preview = QLPreviewView(frame: .zero, style: .normal)!   // 選択が 1 つの時、その中身を出す
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        ClaudeContext.write(preview: nil)   // 前回の終了時の状態を残さない
         let layout = NSCollectionViewFlowLayout()
         layout.minimumInteritemSpacing = 4
         layout.minimumLineSpacing = 4
@@ -448,7 +761,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         collection.register(BoxHeader.self, forSupplementaryViewOfKind: NSCollectionView.elementKindSectionHeader,
                             withIdentifier: BoxHeader.id)
         collection.setDraggingSourceOperationMask(.copy, forLocal: false)   // 移動・削除は許さない
+        collection.setDraggingSourceOperationMask(.copy, forLocal: true)    // ターミナルへはパスを渡す (コピー扱い)
         // 開くのはクリックしたセルが表示しているファイル (再読込で並びがずれても取り違えない)
+        collection.onReturn = { [weak self] in self?.renameSelected() }
         collection.onOpen = { [weak self] ip in
             let item = self?.collection.item(at: ip)
             guard let url = (item as? ShelfItem)?.url ?? (item as? ShelfListItem)?.url else { return }
@@ -475,7 +790,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         window.delegate = self
         let searchBar = makeSearchBar()
         let content = NSView()
-        for v in [searchBar, scroll!] {
+        let pane = terminal.view
+        func line() -> NSView {
+            let v = NSView()
+            v.wantsLayer = true
+            v.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.15).cgColor
+            return v
+        }
+        let paneLine = line()      // 左の列と一覧の境目
+        let previewLine = line()   // ターミナルとプレビューの境目
+        for v in [searchBar, pane, previewLine, preview, paneLine, scroll!] {
             v.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(v)
         }
@@ -484,8 +808,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
             searchBar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             searchBar.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             searchBar.heightAnchor.constraint(equalToConstant: 36),
+            pane.topAnchor.constraint(equalTo: searchBar.bottomAnchor),
+            pane.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            pane.widthAnchor.constraint(equalToConstant: leftWidth),
+            pane.heightAnchor.constraint(equalTo: preview.heightAnchor),   // 上下半分ずつ
+            previewLine.topAnchor.constraint(equalTo: pane.bottomAnchor),
+            previewLine.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            previewLine.trailingAnchor.constraint(equalTo: pane.trailingAnchor),
+            previewLine.heightAnchor.constraint(equalToConstant: 1),
+            preview.topAnchor.constraint(equalTo: previewLine.bottomAnchor),
+            preview.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            preview.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            preview.trailingAnchor.constraint(equalTo: pane.trailingAnchor),
+            paneLine.topAnchor.constraint(equalTo: searchBar.bottomAnchor),
+            paneLine.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            paneLine.leadingAnchor.constraint(equalTo: pane.trailingAnchor),
+            paneLine.widthAnchor.constraint(equalToConstant: 1),
             scroll.topAnchor.constraint(equalTo: searchBar.bottomAnchor),
-            scroll.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            scroll.leadingAnchor.constraint(equalTo: paneLine.trailingAnchor),
             scroll.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
         ])
@@ -521,10 +861,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
     // 隠れたまま位置を決めてから表示する (古い位置に一瞬出ない)
     func show() {
         scroll.contentInsets.bottom = 0   // keepHeaderInPlace が足した余白を戻す
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
+        let screen = NSScreen.screens.max { $0.frame.maxX < $1.frame.maxX }   // 一番右の画面
         if let vis = screen?.visibleFrame {   // visibleFrame で右配置 Dock とメニューバーを避ける
-            let w = floor(vis.width / 3)
+            // 左の列 + 境目 1px + シェルフ 4 列 (枠 96+8 と間 4・左右の sectionInset)。スクロールバーが幅を取る設定ならその分も足す
+            let shelf = 4 * (thumbSize.width + 8) + 3 * 4 + 12
+                + NSScroller.scrollerWidth(for: .regular, scrollerStyle: NSScroller.preferredScrollerStyle)
+            let w = min(vis.width, leftWidth + 1 + shelf)
             window.setFrame(NSRect(x: vis.maxX - w, y: vis.minY + taskbarInset, width: w, height: vis.height - taskbarInset),
                             display: false)
         }
@@ -683,6 +1025,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         guard let i = boxes.firstIndex(where: { $0.id == id }) else { return }
         keepHeaderInPlace(id) {
             boxes[i].list.toggle()
+            saveBoxes()
+            refreshBox(i)
+        }
+    }
+
+    // 今の並びのボタンなら昇順/降順を入れ替え、もう一方なら並びを切り替える (名前は昇順、日付は新しい順から)
+    func setSort(_ id: UUID, byName: Bool) {
+        endEditing()
+        guard let i = boxes.firstIndex(where: { $0.id == id }) else { return }
+        keepHeaderInPlace(id) {
+            if boxes[i].byName == byName {
+                boxes[i].ascending.toggle()
+            } else {
+                boxes[i].byName = byName
+                boxes[i].ascending = byName
+            }
             saveBoxes()
             refreshBox(i)
         }
@@ -849,8 +1207,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
 
     func reload() {
         let keys: [URLResourceKey] = [.addedToDirectoryDateKey, .creationDateKey, .fileSizeKey, .isDirectoryKey]
-        let urls = (try? FileManager.default.contentsOfDirectory(at: downloadsURL, includingPropertiesForKeys: keys,
-                                                                 options: [.skipsHiddenFiles])) ?? []
+        let urls = folderURLs.flatMap {
+            (try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles])) ?? []
+        }
         func added(_ u: URL) -> Date {
             let v = try? u.resourceValues(forKeys: Set(keys))
             return v?.addedToDirectoryDate ?? v?.creationDate ?? .distantPast
@@ -882,7 +1241,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
                 restore.insert(IndexPath(item: i, section: s))
             }
         }
+        if let target = selectAfterReload, files.contains(target) {
+            selectAfterReload = nil
+            restore = []
+            for (s, entry) in shown.enumerated() where entry.box.open {
+                if let i = entry.files.firstIndex(of: target) { restore.insert(IndexPath(item: i, section: s)) }
+            }
+        }
         collection.selectionIndexPaths = restore
+        if let first = restore.min() { collection.scrollToItems(at: [first], scrollPosition: .nearestHorizontalEdge) }
         updateTrashButton()
     }
 
@@ -898,9 +1265,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         return files.indices.contains(ip.item) ? files[ip.item] : nil
     }
 
-    // ディレクトリ自体の書き込みイベントで再読込。ダウンロード中は連続で来るので 0.3 秒まとめる
+    // 各フォルダ自体の書き込みイベントで再読込。ダウンロード中は連続で来るので 0.3 秒まとめる
     func startWatching() {
-        let fd = open(downloadsURL.path, O_EVTONLY)
+        for folder in folderURLs { watch(folder) }
+    }
+
+    func watch(_ folder: URL) {
+        let fd = open(folder.path, O_EVTONLY)
         guard fd >= 0 else { return }
         let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .delete], queue: .main)
         src.setEventHandler { [weak self] in
@@ -913,7 +1284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         }
         src.setCancelHandler { close(fd) }
         src.resume()
-        watcher = src
+        watchers.append(src)
     }
 
     // MARK: - サムネイル
@@ -1005,7 +1376,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         url(at: ip) as NSURL?
     }
 
-    func collectionView(_ cv: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) { updateTrashButton() }
+    func collectionView(_ cv: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
+        updateTrashButton()
+    }
     func collectionView(_ cv: NSCollectionView, didDeselectItemsAt indexPaths: Set<IndexPath>) { updateTrashButton() }
 
     // MARK: - タイトルバー右端のボタン (全部開く・全部閉じる・箱の追加・ゴミ箱)
@@ -1021,8 +1394,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         }
         plusButton = button("箱を追加", #selector(addBox))
         trashButton = button("ゴミ箱に入れる", #selector(trashSelected))
+        renameButton = button("名前を変更", #selector(renameSelected))
         let buttons = [button("すべて開く", #selector(openAllBoxes)), button("すべて閉じる", #selector(closeAllBoxes)),
-                       plusButton!, trashButton!]
+                       plusButton!, renameButton!, trashButton!]
         // 幅は文字数に合わせず、いちばん長い文言のボタンに揃える
         let width = buttons.map { $0.fittingSize.width }.max() ?? 0
         for b in buttons { b.widthAnchor.constraint(equalToConstant: width).isActive = true }
@@ -1039,11 +1413,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
 
     func updateTrashButton() {
         trashButton?.isEnabled = !collection.selectionIndexPaths.isEmpty
+        renameButton?.isEnabled = renameTarget != nil
+        updatePreview()
     }
+
+    // 選択が変わるたびに呼ばれる (updateTrashButton 経由)。選択が 1 つの時だけ出し、複数・無しなら空にする。
+    // 同じファイルのままなら差し替えない (フォルダの再読込のたびに動画が頭に戻る・ちらつくのを防ぐ)
+    func updatePreview() {
+        let url = renameTarget
+        guard (preview.previewItem as? URL) != url else { return }
+        preview.previewItem = url as NSURL?
+        ClaudeContext.write(preview: url)   // claude が話しかけられた時に読む
+    }
+
+    // 選択中のファイル。同じファイルが複数の箱で選ばれていても 1 つに数える
+    var selectedURLs: [URL] { Array(Set(collection.selectionIndexPaths.compactMap { url(at: $0) })) }
 
     // 選択中のファイルをゴミ箱へ。同じファイルが複数の箱で選ばれていても 1 回だけ渡す
     @objc func trashSelected() {
-        let urls = Array(Set(collection.selectionIndexPaths.compactMap { url(at: $0) }))
+        let urls = selectedURLs
         guard !urls.isEmpty else { return }
         collection.deselectAll(nil)
         updateTrashButton()
@@ -1051,6 +1439,103 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         NSWorkspace.shared.recycle(urls) { _, error in
             if let error { NSLog("[DownloadsShelf] recycle failed: \(error)") }
         }
+    }
+    // MARK: - 名前の変更
+
+    // 名前を入れるシート。最初は拡張子を除いた部分を選択しておく (Finder と同じ)
+    // 名前を変える対象 (プレビューの対象も同じ): シェルフで選んだ 1 つ
+    var renameTarget: URL? {
+        let urls = selectedURLs
+        return urls.count == 1 ? urls[0] : nil
+    }
+
+    @objc func renameSelected() {
+        guard window.attachedSheet == nil else { return }
+        guard let src = renameTarget else { return }
+        let old = src.lastPathComponent
+        let field = NSTextField(string: old)
+        field.frame = NSRect(x: 0, y: 0, width: 360, height: 22)
+        field.lineBreakMode = .byTruncatingMiddle
+        field.cell?.isScrollable = true
+        let alert = NSAlert()
+        alert.messageText = "名前を変更"
+        alert.informativeText = "「\(old)」の新しい名前:"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "変更")
+        alert.addButton(withTitle: "キャンセル")
+        alert.window.initialFirstResponder = field
+        alert.beginSheetModal(for: window) { response in
+            guard response == .alertFirstButtonReturn else { return }
+            self.confirmExtension(src, field.stringValue)
+        }
+        DispatchQueue.main.async {
+            let ext = (old as NSString).pathExtension
+            let base = ext.isEmpty || old.hasPrefix(".") ? old.utf16.count : old.utf16.count - ext.utf16.count - 1
+            field.currentEditor()?.selectedRange = NSRange(location: 0, length: base)
+        }
+    }
+
+    // 拡張子が変わる時は一度止める (開くアプリが変わるため。Finder と同じ確認)
+    func confirmExtension(_ src: URL, _ name: String) {
+        let oldExt = src.pathExtension, newExt = (name as NSString).pathExtension
+        guard oldExt.lowercased() != newExt.lowercased() else { rename(src, to: name); return }
+        let alert = NSAlert()
+        alert.messageText = newExt.isEmpty ? "拡張子「.\(oldExt)」を取り除きますか?"
+            : oldExt.isEmpty ? "拡張子「.\(newExt)」を付けますか?" : "拡張子を「.\(oldExt)」から「.\(newExt)」に変えますか?"
+        alert.informativeText = "変えると、別のアプリで開かれるようになる場合があります。"
+        alert.addButton(withTitle: "変更")
+        alert.addButton(withTitle: "キャンセル")
+        alert.beginSheetModal(for: window) { response in
+            if response == .alertFirstButtonReturn { self.rename(src, to: name) }
+        }
+    }
+
+    // ファイルを失わないための手順:
+    // - 変更先は必ず同じフォルダ。renamex_np 1 回で名前だけを差し替える (コピー+削除はしない)。
+    //   失敗しても元のファイルはそのまま残り、途中の状態は存在しない
+    // - RENAME_EXCL で、変更先に同名のファイルがあれば上書きせず失敗させる。事前に有無を調べてから変える方式と違い、
+    //   調べてから変えるまでの間に同名ができても上書きしない
+    // - 大文字小文字・濁点の合成/分解だけが違う名前は、APFS では同じファイルを指すので RENAME_EXCL が「既にある」で
+    //   失敗する。変更先が元と同じファイル (同じデバイス・inode) だと確かめた時だけ、RENAME_EXCL 無しで変える
+    // - 名前は区切り文字 (/ と :)・先頭の .・255 バイト超を拒否する (: は Finder では / に見え、. 始まりは隠しファイルになる)
+    func rename(_ src: URL, to name: String) {
+        let old = src.lastPathComponent
+        if name == old { return }
+        if let problem = invalidReason(name) { showRenameError(old, problem); return }
+        let dst = src.deletingLastPathComponent().appendingPathComponent(name)
+        var result = renamex_np(src.path, dst.path, UInt32(RENAME_EXCL))
+        if result != 0 && errno == EEXIST && sameFile(src, dst) {
+            result = renamex_np(src.path, dst.path, 0)
+        }
+        if result != 0 {
+            let reason = errno == EEXIST ? "同じ名前のファイルが既にあります。" : String(cString: strerror(errno))
+            showRenameError(old, reason)
+            return
+        }
+        // 表示はフォルダ監視の再読込で更新される。その時に新しい名前のファイルを選択し直す
+        selectAfterReload = dst
+    }
+
+    func invalidReason(_ name: String) -> String? {
+        if name.isEmpty { return "名前が空です。" }
+        if name.contains("/") || name.contains(":") { return "「/」と「:」は使えません。" }
+        if name.hasPrefix(".") { return "「.」で始まる名前は隠しファイルになるため使えません。" }
+        if name.utf8.count > 255 { return "名前が長すぎます。" }
+        return nil
+    }
+
+    func sameFile(_ a: URL, _ b: URL) -> Bool {
+        var sa = stat(), sb = stat()
+        guard lstat(a.path, &sa) == 0, lstat(b.path, &sb) == 0 else { return false }
+        return sa.st_dev == sb.st_dev && sa.st_ino == sb.st_ino
+    }
+
+    func showRenameError(_ old: String, _ reason: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "「\(old)」の名前を変更できませんでした"
+        alert.informativeText = reason + "\nファイルは元の名前のまま残っています。"
+        alert.beginSheetModal(for: window)
     }
 }
 
