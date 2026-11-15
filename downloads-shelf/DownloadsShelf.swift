@@ -259,7 +259,8 @@ final class ShelfListItem: NSCollectionViewItem {
     }
 }
 
-// 箱の見出し (Mattermost のサイドバーのカテゴリ見出し風): ▾/▸・正規表現の入力欄 | 件数 … 名前/日付・表示切替 … ゴミ箱・×
+// 箱の見出し (Mattermost のサイドバーのカテゴリ見出し風): ▾/▸・正規表現の入力欄 | 件数 … 名前/日付・表示切替 … ×
+// (箱のファイルを全部ゴミ箱へ入れるボタンは、押し間違いが危険すぎるので外した)
 // 入力欄とボタン以外の部分は、クリックで開閉・上下ドラッグで並べ替え
 final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     static let id = NSUserInterfaceItemIdentifier("BoxHeader")
@@ -270,7 +271,6 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     let count = NSTextField(labelWithString: "")
     let remove = NSButton()
     let mode = NSButton()   // サムネイル / リスト切替
-    let trash = NSButton()  // 箱に見えているファイルを全部ゴミ箱へ
     let sortName = NSButton()   // 名前順。並び中に押すと昇順/降順の切替
     let sortDate = NSButton()   // 追加日順。同上
     var boxID: UUID?
@@ -309,13 +309,6 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         remove.toolTip = "この箱を削除 (ファイルは消えない)"
         remove.target = self
         remove.action = #selector(removeTapped)
-        trash.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "全部ゴミ箱に入れる")
-        trash.symbolConfiguration = symbol
-        trash.contentTintColor = mmText
-        trash.isBordered = false
-        trash.toolTip = "この箱に見えているファイルを全部ゴミ箱に入れる"
-        trash.target = self
-        trash.action = #selector(trashTapped)
         mode.symbolConfiguration = symbol
         mode.contentTintColor = mmText
         mode.isBordered = false
@@ -328,7 +321,7 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
         }
         sortName.toolTip = "名前順にする (名前順の時は昇順/降順の切替)"
         sortDate.toolTip = "追加日順にする (日付順の時は新しい順/古い順の切替)"
-        for v in [bottomLine, toggle, field, divider, sortName, sortDate, count, trash, mode, remove] as [NSView] {
+        for v in [bottomLine, toggle, field, divider, sortName, sortDate, count, mode, remove] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             addSubview(v)
         }
@@ -353,11 +346,8 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
             sortName.centerYAnchor.constraint(equalTo: centerYAnchor),
             sortDate.trailingAnchor.constraint(equalTo: mode.leadingAnchor, constant: -10),
             sortDate.centerYAnchor.constraint(equalTo: centerYAnchor),
-            // 消す操作 (ゴミ箱・×) は間を空けて右端に寄せ、表示の操作と押し間違えないようにする
-            mode.trailingAnchor.constraint(equalTo: trash.leadingAnchor, constant: -22),
-            trash.trailingAnchor.constraint(equalTo: remove.leadingAnchor, constant: -6),
-            trash.centerYAnchor.constraint(equalTo: centerYAnchor),
-            trash.widthAnchor.constraint(equalToConstant: 16),
+            // 箱を消す × は間を空けて右端に寄せ、表示の操作と押し間違えないようにする
+            mode.trailingAnchor.constraint(equalTo: remove.leadingAnchor, constant: -22),
             mode.centerYAnchor.constraint(equalTo: centerYAnchor),
             mode.widthAnchor.constraint(equalToConstant: 18),
             count.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -366,7 +356,7 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
             remove.widthAnchor.constraint(equalToConstant: 16),
         ])
         // 右のボタンは押せる範囲を見出しの高さいっぱいにする (絵の大きさだけだと、少し上下に外れると見出しの開閉になる)
-        for b in [sortName, sortDate, trash, mode, remove] { b.heightAnchor.constraint(equalTo: heightAnchor).isActive = true }
+        for b in [sortName, sortDate, mode, remove] { b.heightAnchor.constraint(equalTo: heightAnchor).isActive = true }
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -430,7 +420,6 @@ final class BoxHeader: NSView, NSCollectionViewElement, NSTextFieldDelegate {
     @objc func modeTapped() { if let boxID { owner?.toggleListMode(boxID) } }
     @objc func sortNameTapped() { if let boxID { owner?.setSort(boxID, byName: true) } }
     @objc func sortDateTapped() { if let boxID { owner?.setSort(boxID, byName: false) } }
-    @objc func trashTapped() { if let boxID { owner?.trashBox(boxID) } }
     @objc func removeTapped() { if let boxID { owner?.removeBox(boxID) } }
     // Enter・Tab・別の場所のクリックのどれでも来る (確定ボタンは置かない)
     func controlTextDidEndEditing(_ obj: Notification) {
@@ -1098,27 +1087,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         shown.remove(at: i)
         collection.performBatchUpdates({ collection.deleteSections(IndexSet(integer: i)) })
         updateTrashButton()
-    }
-
-    // 箱に見えているファイル (検索中なら検索に当たったもの。閉じていても対象) を確認のうえ全部ゴミ箱へ。
-    // 「*」の箱ならダウンロードフォルダ全部になるので、件数を見せて一度止める
-    func trashBox(_ id: UUID) {
-        endEditing()
-        guard let files = shown.first(where: { $0.box.id == id })?.files, !files.isEmpty else { return }
-        let alert = NSAlert()
-        alert.messageText = "\(files.count) 個のファイルをゴミ箱に入れますか?"
-        alert.informativeText = searchField.stringValue.isEmpty ? "この箱に見えているファイルすべてが対象です。"
-                                                                : "この箱で検索に当たっているファイルすべてが対象です。"
-        alert.addButton(withTitle: "ゴミ箱に入れる")
-        alert.addButton(withTitle: "キャンセル")
-        alert.beginSheetModal(for: window) { response in
-            guard response == .alertFirstButtonReturn else { return }
-            self.collection.deselectAll(nil)
-            self.updateTrashButton()
-            NSWorkspace.shared.recycle(files) { _, error in
-                if let error { NSLog("[DownloadsShelf] recycle failed: \(error)") }
-            }
-        }
     }
 
     // 見出しの mouseDown から。動かさずに離せば開閉、上下に動かせば並べ替え。
