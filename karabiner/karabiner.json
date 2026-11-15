@@ -26,13 +26,13 @@
                         ]
                     },
                     {
-                        "description": "BS (スペース右) を押している間は A/S/D/F も BS。BS 自体は押した瞬間に1文字消す (1タッチ1文字は崩さない)。どの BS も押してすぐ離す (押したままの BS と同じキーを重ねて送ると不発になるため)。F13+BS は従来どおり",
+                        "description": "【試し中】スペース右は単独では何も出さない (押している間 bs_held を 1 にするだけ)。BS はスペース右+A/S/D/F で、叩くたびに1回 (押してすぐ離す)。F13+BS は従来どおり。戻すなら d551010 (スペース右=BS のまま A/S/D/F も BS) か 9bef97c (BS+A/S/D/F 自体が無い)",
                         "manipulators": [
                             {
                                 "type": "basic",
                                 "from": { "key_code": "delete_or_backspace", "modifiers": { "optional": ["any"] } },
                                 "conditions": [{ "type": "variable_unless", "name": "f13_pressed", "value": 1 }],
-                                "to": [{ "key_code": "delete_or_backspace" }, { "set_variable": { "name": "bs_held", "value": 1 } }],
+                                "to": [{ "set_variable": { "name": "bs_held", "value": 1 } }],
                                 "to_after_key_up": [{ "set_variable": { "name": "bs_held", "value": 0 } }]
                             },
                             {
