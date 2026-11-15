@@ -26,6 +26,42 @@
                         ]
                     },
                     {
+                        "description": "BS (スペース右) を押している間は A/S/D/F も BS。BS 自体は押した瞬間に1文字消す (1タッチ1文字は崩さない)。どの BS も押してすぐ離す (押したままの BS と同じキーを重ねて送ると不発になるため)。F13+BS は従来どおり",
+                        "manipulators": [
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "delete_or_backspace", "modifiers": { "optional": ["any"] } },
+                                "conditions": [{ "type": "variable_unless", "name": "f13_pressed", "value": 1 }],
+                                "to": [{ "key_code": "delete_or_backspace" }, { "set_variable": { "name": "bs_held", "value": 1 } }],
+                                "to_after_key_up": [{ "set_variable": { "name": "bs_held", "value": 0 } }]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "a", "modifiers": { "optional": ["any"] } },
+                                "to": [{ "key_code": "delete_or_backspace" }, { "key_code": "vk_none" }],
+                                "conditions": [{ "type": "variable_if", "name": "bs_held", "value": 1 }]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "s", "modifiers": { "optional": ["any"] } },
+                                "to": [{ "key_code": "delete_or_backspace" }, { "key_code": "vk_none" }],
+                                "conditions": [{ "type": "variable_if", "name": "bs_held", "value": 1 }]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "d", "modifiers": { "optional": ["any"] } },
+                                "to": [{ "key_code": "delete_or_backspace" }, { "key_code": "vk_none" }],
+                                "conditions": [{ "type": "variable_if", "name": "bs_held", "value": 1 }]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "f", "modifiers": { "optional": ["any"] } },
+                                "to": [{ "key_code": "delete_or_backspace" }, { "key_code": "vk_none" }],
+                                "conditions": [{ "type": "variable_if", "name": "bs_held", "value": 1 }]
+                            }
+                        ]
+                    },
+                    {
                         "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter、英数+W=Spotlight(Cmd+F14)、いずれもMac/Parallels両対応",
                         "manipulators": [
                             {
