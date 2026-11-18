@@ -157,7 +157,8 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 |---|---|---|
 | `N` | `(` | Shift+8 |
 | `M` | `)` | Shift+9 |
-| `.` | `\` | Mac: Option+international3 / Parallels: international3 |
+| `,` | `<` | Shift+, |
+| `.` | `>` | Shift+. |
 | `Y` | `¥` | international3 |
 | `U` | `"` | Shift+2 |
 | `I` | `'` | Shift+7 |
@@ -169,6 +170,8 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | `[` | `^` | equal_sign |
 | `]` | `$` | Shift+4 |
 | `_` | `\|` | Shift+international3 |
+
+F13 を押していない時の Shift+`_` (ろキー) は `\` (Mac: Option+international3 / Parallels: international3)。
 
 ### その他
 

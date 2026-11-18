@@ -26,38 +26,105 @@
                         ]
                     },
                     {
-                        "description": "【試し中】スペース右は単独では何も出さない (押している間 bs_held を 1 にするだけ)。BS はスペース右+A/S/D/F で、叩くたびに1回 (押してすぐ離す)。F13+BS は従来どおり。戻すなら d551010 (スペース右=BS のまま A/S/D/F も BS) か 9bef97c (BS+A/S/D/F 自体が無い)",
+                        "description": "【試し中】スペース右 (かな) は BS でなく F21 (simple_modifications)。単独の1回目は何も出さず、前の押下から 300ms 以内に続けて叩いた2回目以降が押した瞬間に BS。変数を2つ (f21_tap_a / f21_tap_b) 交互に使う (1つだと、次の押下で前の押下の待ちが取り消された時に、立てたばかりの変数を倒してしまい3回目が出ない)。押している間 bs_held を 1 にする。BS はスペース右+J/K/L で、叩くたびに1回 (押してすぐ離す)。F13+BS は従来どおり。戻すなら d551010 (スペース右=BS のまま A/S/D/F も BS) か 9bef97c (BS+A/S/D/F 自体が無い)",
                         "manipulators": [
                             {
+                                "description": "続けて叩いた偶数回目 (前の押下から 300ms 以内): BS 1 回、f21_tap_b を立てる",
                                 "type": "basic",
-                                "from": { "key_code": "delete_or_backspace", "modifiers": { "optional": ["any"] } },
-                                "conditions": [{ "type": "variable_unless", "name": "f13_pressed", "value": 1 }],
-                                "to": [{ "set_variable": { "name": "bs_held", "value": 1 } }],
+                                "from": { "key_code": "f21", "modifiers": { "optional": ["any"] } },
+                                "conditions": [
+                                    { "type": "variable_if", "name": "f21_tap_a", "value": 1 },
+                                    { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+                                ],
+                                "to": [
+                                    { "key_code": "delete_or_backspace" },
+                                    { "set_variable": { "name": "f21_tap_b", "value": 1 } },
+                                    { "set_variable": { "name": "bs_held", "value": 1 } }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_invoked": [{ "set_variable": { "name": "f21_tap_b", "value": 0 } }],
+                                    "to_if_canceled": [{ "set_variable": { "name": "f21_tap_b", "value": 0 } }]
+                                },
+                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
+                                "to_after_key_up": [{ "set_variable": { "name": "bs_held", "value": 0 } }]
+                            },
+                            {
+                                "description": "続けて叩いた奇数回目 (3回目以降): BS 1 回、f21_tap_a を立てる",
+                                "type": "basic",
+                                "from": { "key_code": "f21", "modifiers": { "optional": ["any"] } },
+                                "conditions": [
+                                    { "type": "variable_if", "name": "f21_tap_b", "value": 1 },
+                                    { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+                                ],
+                                "to": [
+                                    { "key_code": "delete_or_backspace" },
+                                    { "set_variable": { "name": "f21_tap_a", "value": 1 } },
+                                    { "set_variable": { "name": "bs_held", "value": 1 } }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_invoked": [{ "set_variable": { "name": "f21_tap_a", "value": 0 } }],
+                                    "to_if_canceled": [{ "set_variable": { "name": "f21_tap_a", "value": 0 } }]
+                                },
+                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
+                                "to_after_key_up": [{ "set_variable": { "name": "bs_held", "value": 0 } }]
+                            },
+                            {
+                                "description": "1回目: 何も出さず f21_tap_a を立てる",
+                                "type": "basic",
+                                "from": { "key_code": "f21", "modifiers": { "optional": ["any"] } },
+                                "conditions": [
+                                    { "type": "variable_unless", "name": "f13_pressed", "value": 1 }
+                                ],
+                                "to": [
+                                    { "set_variable": { "name": "f21_tap_a", "value": 1 } },
+                                    { "set_variable": { "name": "bs_held", "value": 1 } }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_invoked": [{ "set_variable": { "name": "f21_tap_a", "value": 0 } }],
+                                    "to_if_canceled": [{ "set_variable": { "name": "f21_tap_a", "value": 0 } }]
+                                },
+                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
                                 "to_after_key_up": [{ "set_variable": { "name": "bs_held", "value": 0 } }]
                             },
                             {
                                 "type": "basic",
-                                "from": { "key_code": "a", "modifiers": { "optional": ["any"] } },
+                                "from": { "key_code": "j", "modifiers": { "optional": ["any"] } },
                                 "to": [{ "key_code": "delete_or_backspace" }, { "key_code": "vk_none" }],
                                 "conditions": [{ "type": "variable_if", "name": "bs_held", "value": 1 }]
                             },
                             {
                                 "type": "basic",
-                                "from": { "key_code": "s", "modifiers": { "optional": ["any"] } },
+                                "from": { "key_code": "k", "modifiers": { "optional": ["any"] } },
                                 "to": [{ "key_code": "delete_or_backspace" }, { "key_code": "vk_none" }],
                                 "conditions": [{ "type": "variable_if", "name": "bs_held", "value": 1 }]
                             },
                             {
                                 "type": "basic",
-                                "from": { "key_code": "d", "modifiers": { "optional": ["any"] } },
+                                "from": { "key_code": "l", "modifiers": { "optional": ["any"] } },
                                 "to": [{ "key_code": "delete_or_backspace" }, { "key_code": "vk_none" }],
                                 "conditions": [{ "type": "variable_if", "name": "bs_held", "value": 1 }]
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Shift+_ (JIS のろキー) = \\ (バックスラッシュ)",
+                        "manipulators": [
+                            {
+                                "description": "Parallels: Windows の JIS では ¥ キー単押しがバックスラッシュ",
+                                "type": "basic",
+                                "from": { "key_code": "international1", "modifiers": { "mandatory": ["shift"], "optional": ["caps_lock"] } },
+                                "conditions": [
+                                    { "type": "variable_unless", "name": "f13_pressed", "value": 1 },
+                                    { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+                                ],
+                                "to": [{ "key_code": "international3" }]
                             },
                             {
+                                "description": "Mac: JIS では Option+¥ がバックスラッシュ (¥ 単押しは円記号)",
                                 "type": "basic",
-                                "from": { "key_code": "f", "modifiers": { "optional": ["any"] } },
-                                "to": [{ "key_code": "delete_or_backspace" }, { "key_code": "vk_none" }],
-                                "conditions": [{ "type": "variable_if", "name": "bs_held", "value": 1 }]
+                                "from": { "key_code": "international1", "modifiers": { "mandatory": ["shift"], "optional": ["caps_lock"] } },
+                                "conditions": [{ "type": "variable_unless", "name": "f13_pressed", "value": 1 }],
+                                "to": [{ "key_code": "international3", "modifiers": ["left_option"] }]
                             }
                         ]
                     },
@@ -705,9 +772,9 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+Backspace = Delete (Forward Delete)",
+                                "description": "F13+スペース右 (F21) = Delete (Forward Delete)",
                                 "from": {
-                                    "key_code": "delete_or_backspace",
+                                    "key_code": "f21",
                                     "modifiers": { "optional": ["any"] }
                                 },
                                 "to": [{ "key_code": "delete_forward" }],
@@ -1151,48 +1218,18 @@
                                 "type": "basic"
                             },
                             {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "bundle_identifiers": [
-                                            "^com\\.parallels\\.desktop\\.console$",
-                                            "^com\\.parallels\\.winapp\\."
-                                        ],
-                                        "type": "frontmost_application_if"
-                                    }
-                                ],
-                                "description": "F13+. (Parallels) = \\ (Windows の JIS では ¥ キー単押しがバックスラッシュ)",
-                                "from": {
-                                    "key_code": "period",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [{ "key_code": "international3" }],
-                                "type": "basic"
+                                "description": "F13+, = < (JIS:Shift+,)",
+                                "type": "basic",
+                                "from": { "key_code": "comma", "modifiers": { "optional": ["any"] } },
+                                "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+                                "to": [{ "key_code": "comma", "modifiers": ["left_shift"] }]
                             },
                             {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    }
-                                ],
-                                "description": "F13+. = \\ (Mac の JIS では Option+¥。¥ 単押しは円記号)",
-                                "from": {
-                                    "key_code": "period",
-                                    "modifiers": { "optional": ["any"] }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "international3",
-                                        "modifiers": ["left_option"]
-                                    }
-                                ],
-                                "type": "basic"
+                                "description": "F13+. = > (JIS:Shift+.)",
+                                "type": "basic",
+                                "from": { "key_code": "period", "modifiers": { "optional": ["any"] } },
+                                "conditions": [{ "type": "variable_if", "name": "f13_pressed", "value": 1 }],
+                                "to": [{ "key_code": "period", "modifiers": ["left_shift"] }]
                             },
                             {
                                 "conditions": [
@@ -1917,7 +1954,7 @@
                         },
                         {
                             "from": { "key_code": "japanese_kana" },
-                            "to": [{ "key_code": "delete_or_backspace" }]
+                            "to": [{ "key_code": "f21" }]
                         },
                         {
                             "from": { "key_code": "left_command" },
