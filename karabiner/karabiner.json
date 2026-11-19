@@ -26,7 +26,7 @@
                         ]
                     },
                     {
-                        "description": "【試し中】スペース右 (かな) は BS でなく F21 (simple_modifications)。単独の1回目は何も出さず、前の押下から 300ms 以内に続けて叩いた2回目以降が押した瞬間に BS。変数を2つ (f21_tap_a / f21_tap_b) 交互に使う (1つだと、次の押下で前の押下の待ちが取り消された時に、立てたばかりの変数を倒してしまい3回目が出ない)。押している間 bs_held を 1 にする。BS はスペース右+J/K/L で、叩くたびに1回 (押してすぐ離す)。F13+BS は従来どおり。戻すなら d551010 (スペース右=BS のまま A/S/D/F も BS) か 9bef97c (BS+A/S/D/F 自体が無い)",
+                        "description": "【試し中】スペース右 (かな) は BS でなく F21 (simple_modifications)。単独の1回目は何も出さず、前の押下から 300ms 以内に続けて叩いた2回目以降が押した瞬間に BS。変数を2つ (f21_tap_a / f21_tap_b) 交互に使う (1つだと、次の押下で前の押下の待ちが取り消された時に、立てたばかりの変数を倒してしまい3回目が出ない)。押している間 bs_held を 1 にする。BS はスペース右+J/K/L で、叩くたびに1回 (押してすぐ離す)。F13+スペース右も同じ作りで BS の代わりに Delete (1回目は何も出さず、続けて叩いた2回目以降と、押したままの J/K/L が Delete)。F13+BS は従来どおり。戻すなら d551010 (スペース右=BS のまま A/S/D/F も BS) か 9bef97c (BS+A/S/D/F 自体が無い)",
                         "manipulators": [
                             {
                                 "description": "続けて叩いた偶数回目 (前の押下から 300ms 以内): BS 1 回、f21_tap_b を立てる",
@@ -85,6 +85,24 @@
                                 },
                                 "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
                                 "to_after_key_up": [{ "set_variable": { "name": "bs_held", "value": 0 } }]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "j", "modifiers": { "optional": ["any"] } },
+                                "to": [{ "key_code": "delete_forward" }, { "key_code": "vk_none" }],
+                                "conditions": [{ "type": "variable_if", "name": "del_held", "value": 1 }]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "k", "modifiers": { "optional": ["any"] } },
+                                "to": [{ "key_code": "delete_forward" }, { "key_code": "vk_none" }],
+                                "conditions": [{ "type": "variable_if", "name": "del_held", "value": 1 }]
+                            },
+                            {
+                                "type": "basic",
+                                "from": { "key_code": "l", "modifiers": { "optional": ["any"] } },
+                                "to": [{ "key_code": "delete_forward" }, { "key_code": "vk_none" }],
+                                "conditions": [{ "type": "variable_if", "name": "del_held", "value": 1 }]
                             },
                             {
                                 "type": "basic",
@@ -428,14 +446,39 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": ["^com\\.google\\.Chrome$"],
+                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+V = 直前のウィンドウへフォーカス (Win風Alt+Tab交互トグル)。F16を送出しHS側のhotkeyで受ける (旧: open -g hammerspoon://prevwindow)",
+                                "description": "F13+V (Chrome) = Option+Shift+V。拡張 chrome-extension/split-tabs が受けて、今のタブと右隣をタブ分割表示に。分割中なら解除",
                                 "from": {
                                     "key_code": "v",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "f16", "repeat": false }],
+                                "to": [
+                                    {
+                                        "key_code": "v",
+                                        "modifiers": ["left_option", "left_shift"]
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    }
+                                ],
+                                "description": "F13+V (Chrome 以外) = 何もしない (素の v を出さない)",
+                                "from": {
+                                    "key_code": "v",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "vk_none" }],
                                 "type": "basic"
                             },
                             {
@@ -770,14 +813,206 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "name": "del_tap_a",
+                                        "type": "variable_if",
+                                        "value": 1
                                     }
                                 ],
-                                "description": "F13+スペース右 (F21) = Delete (Forward Delete)",
+                                "description": "F13+スペース右 (F21) の続けて叩いた偶数回目 (前の押下から 300ms 以内) = Delete 1回 (押してすぐ離す)。BS (2番目のルール) と同じ作りで、変数は del_tap_a / del_tap_b を交互に使う。押している間 del_held を 1 にし、J/K/L も Delete になる",
                                 "from": {
                                     "key_code": "f21",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
-                                "to": [{ "key_code": "delete_forward" }],
+                                "to": [
+                                    {
+                                        "key_code": "delete_forward"
+                                    },
+                                    {
+                                        "key_code": "vk_none"
+                                    },
+                                    {
+                                        "set_variable": {
+                                            "name": "del_tap_b",
+                                            "value": 1
+                                        }
+                                    },
+                                    {
+                                        "set_variable": {
+                                            "name": "del_held",
+                                            "value": 1
+                                        }
+                                    }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_invoked": [
+                                        {
+                                            "set_variable": {
+                                                "name": "del_tap_b",
+                                                "value": 0
+                                            }
+                                        }
+                                    ],
+                                    "to_if_canceled": [
+                                        {
+                                            "set_variable": {
+                                                "name": "del_tap_b",
+                                                "value": 0
+                                            }
+                                        }
+                                    ]
+                                },
+                                "parameters": {
+                                    "basic.to_delayed_action_delay_milliseconds": 300
+                                },
+                                "to_after_key_up": [
+                                    {
+                                        "set_variable": {
+                                            "name": "del_held",
+                                            "value": 0
+                                        }
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "name": "del_tap_b",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    }
+                                ],
+                                "description": "F13+スペース右 (F21) の続けて叩いた奇数回目 (3回目以降) = Delete 1回",
+                                "from": {
+                                    "key_code": "f21",
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "key_code": "delete_forward"
+                                    },
+                                    {
+                                        "key_code": "vk_none"
+                                    },
+                                    {
+                                        "set_variable": {
+                                            "name": "del_tap_a",
+                                            "value": 1
+                                        }
+                                    },
+                                    {
+                                        "set_variable": {
+                                            "name": "del_held",
+                                            "value": 1
+                                        }
+                                    }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_invoked": [
+                                        {
+                                            "set_variable": {
+                                                "name": "del_tap_a",
+                                                "value": 0
+                                            }
+                                        }
+                                    ],
+                                    "to_if_canceled": [
+                                        {
+                                            "set_variable": {
+                                                "name": "del_tap_a",
+                                                "value": 0
+                                            }
+                                        }
+                                    ]
+                                },
+                                "parameters": {
+                                    "basic.to_delayed_action_delay_milliseconds": 300
+                                },
+                                "to_after_key_up": [
+                                    {
+                                        "set_variable": {
+                                            "name": "del_held",
+                                            "value": 0
+                                        }
+                                    }
+                                ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    }
+                                ],
+                                "description": "F13+スペース右 (F21) の1回目 = 何も出さず del_tap_a を立てる",
+                                "from": {
+                                    "key_code": "f21",
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
+                                },
+                                "to": [
+                                    {
+                                        "set_variable": {
+                                            "name": "del_tap_a",
+                                            "value": 1
+                                        }
+                                    },
+                                    {
+                                        "set_variable": {
+                                            "name": "del_held",
+                                            "value": 1
+                                        }
+                                    }
+                                ],
+                                "to_delayed_action": {
+                                    "to_if_invoked": [
+                                        {
+                                            "set_variable": {
+                                                "name": "del_tap_a",
+                                                "value": 0
+                                            }
+                                        }
+                                    ],
+                                    "to_if_canceled": [
+                                        {
+                                            "set_variable": {
+                                                "name": "del_tap_a",
+                                                "value": 0
+                                            }
+                                        }
+                                    ]
+                                },
+                                "parameters": {
+                                    "basic.to_delayed_action_delay_milliseconds": 300
+                                },
+                                "to_after_key_up": [
+                                    {
+                                        "set_variable": {
+                                            "name": "del_held",
+                                            "value": 0
+                                        }
+                                    }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -1118,6 +1353,19 @@
                                 "type": "basic"
                             },
                             {
+                                "description": "F13+C の2回目 (前の押下から 400ms 以内) = ウィンドウを上のディスプレイに移動+最大化。Ctrl+Opt+Cmd+F19 を送出し HS 側の hotkey で受ける",
+                                "type": "basic",
+                                "from": { "key_code": "c", "modifiers": { "optional": ["any"] } },
+                                "conditions": [
+                                    { "type": "variable_if", "name": "f13_pressed", "value": 1 },
+                                    { "type": "variable_if", "name": "f13_c_tapped", "value": 1 }
+                                ],
+                                "to": [
+                                    { "set_variable": { "name": "f13_c_tapped", "value": 0 } },
+                                    { "key_code": "f19", "modifiers": ["left_control", "left_option", "left_command"], "repeat": false }
+                                ]
+                            },
+                            {
                                 "conditions": [
                                     {
                                         "name": "f13_pressed",
@@ -1125,12 +1373,17 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F19を送出しHS側のhotkeyで受ける",
+                                "description": "F13+C = ウィンドウをMac本体ディスプレイ(中央)に移動+最大化 (Mac/コヒーレンス/VM本体すべてHSで処理)。F19を送出しHS側のhotkeyで受ける。400ms 以内にもう一度押すと上のディスプレイへ (上の2回目のルール)",
                                 "from": {
                                     "key_code": "c",
                                     "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [{ "key_code": "f19", "repeat": false }],
+                                "to": [{ "key_code": "f19", "repeat": false }, { "set_variable": { "name": "f13_c_tapped", "value": 1 } }],
+                                "to_delayed_action": {
+                                    "to_if_invoked": [{ "set_variable": { "name": "f13_c_tapped", "value": 0 } }],
+                                    "to_if_canceled": [{ "set_variable": { "name": "f13_c_tapped", "value": 0 } }]
+                                },
+                                "parameters": { "basic.to_delayed_action_delay_milliseconds": 400 },
                                 "type": "basic"
                             },
                             {
@@ -1476,7 +1729,7 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+¥ (JIS:international3) = Ctrl+Opt+Cmd+F17 (範囲指定スクリーンショット。HS が撮影し ~/Downloads への保存とクリップボードの両方に入れる)",
+                                "description": "F13+¥ (JIS:international3) = Ctrl+Opt+Cmd+F17 (範囲指定スクリーンショット。HS が撮影し、クリップボードか ~/Downloads への保存かをその場で選ぶ)",
                                 "from": {
                                     "key_code": "international3",
                                     "modifiers": { "optional": ["any"] }

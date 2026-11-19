@@ -47,21 +47,20 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 
 ### ウィンドウ管理 (Hammerspoon)
 - `moveToDisplay(idx, dockw)` — idx 番目のディスプレイ (左から0始まり) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。自作タスクバーの高さは `taskbar.lua` の `BAR_H` を直接参照する (値の二重管理を避けるため)。`idx` がディスプレイ数を超える場合は最右にクランプする (2画面では `idx=1` の「中央」も最右に丸まる)。
-- `prevWindow` — 直前まで手前にあったウィンドウへフォーカス (Win 風 Alt+Tab の交互トグル)。状態を持たず毎回 `orderedWindows` の重なり順を読むだけなので、Parallels のフォーカス固着の影響を受けにくい。
 - `resizeModerate` — 1200x750 固定リサイズ (位置維持)。
 - DownloadsShelf (`downloads-shelf/`) を起動時に裏で立ち上げて常駐させる。英数+E の出し入れはアプリ自身が受ける (下記)。
 
-**Karabiner からの起動は F16〜F20 の送出**で行う (`hs.hotkey` で受ける)。以前は `open -g 'hammerspoon://...'` を叩いており、1押下ごとに sh と open の fork + LaunchServices への IPC が走っていた。連打時のプロセス生成が WindowServer を固める一因だったため経路ごと廃止し、URL ハンドラも (`hammerspoon://reload` 以外) 撤去した。F16 以降を選んだのは macOS 標準ホットキーが F14/F15 までしか使っておらず、かつ Parallels が F14 系以降をグラブしないため。修飾キーは原則付けない (Karabiner の `from` が物理修飾キーを素通しするため、修飾付きだとホットキーの完全一致から外れて不発になる)。F16〜F20 を使い切り macOS に F21 以降のキーコードが無いため、英数レイヤーのように物理修飾キーを併用しない操作に限り修飾付き (`⌃⌥⌘F16`) で増やす。英数+E の `⌃⌥⌘F16` は HS ではなく DownloadsShelf が Carbon ホットキーで直接受け、F13+¥ の `⌃⌥⌘F17` は HS が受けて撮影する。
+**Karabiner からの起動は F16〜F20 の送出**で行う (`hs.hotkey` で受ける)。以前は `open -g 'hammerspoon://...'` を叩いており、1押下ごとに sh と open の fork + LaunchServices への IPC が走っていた。連打時のプロセス生成が WindowServer を固める一因だったため経路ごと廃止し、URL ハンドラも (`hammerspoon://reload` 以外) 撤去した。F16 以降を選んだのは macOS 標準ホットキーが F14/F15 までしか使っておらず、かつ Parallels が F14 系以降をグラブしないため。修飾キーは原則付けない (Karabiner の `from` が物理修飾キーを素通しするため、修飾付きだとホットキーの完全一致から外れて不発になる)。素の F16 は空き (旧 F13+V の直前ウィンドウ)。F17〜F20 は埋まっており macOS に F21 以降のキーコードが無いため、英数レイヤーのように物理修飾キーを併用しない操作に限り修飾付き (`⌃⌥⌘F16`) で増やす。英数+E の `⌃⌥⌘F16` は HS ではなく DownloadsShelf が Carbon ホットキーで直接受け、F13+¥ の `⌃⌥⌘F17` は HS が受けて撮影し、F13+C 2回の `⌃⌥⌘F19` は HS が受けて上のディスプレイへ移す。
 
 | F13レイヤー | 送出キー | 処理 |
 |---|---|---|
-| `V` | F16 | `prevWindow` |
-| `1` | F17 | `moveToDisplay(0)` |
-| `2` | F18 | `moveToDisplay(2)` |
-| `C` | F19 | `moveToDisplay(1, 61)` |
+| `1` | F17 | `moveToDisplay("left")` (左端が一番左の画面) |
+| `2` | F18 | `moveToDisplay("right")` (右端が一番右の画面) |
+| `C` | F19 | `moveToDisplay("center", 61)` (母艦 = メニューバーのある主画面) |
+| `C` 2回 (400ms 以内) | ⌃⌥⌘F19 | `moveToDisplay("top")` (上端が一番上の画面)。2回押しの判定は Karabiner |
 | `X` | F20 | `resizeModerate` |
 | 英数+`E` | ⌃⌥⌘F16 | DownloadsShelf (アプリ自身) |
-| `¥` | ⌃⌥⌘F17 | 範囲指定スクリーンショット (`screencapture -i` で ~/Downloads に保存し、同じ画像をクリップボードにも入れる) |
+| `¥` | ⌃⌥⌘F17 | 範囲指定スクリーンショット (`screencapture -i` で撮った後、マウス位置に出る2行のメニューでクリップボードか ~/Downloads への保存かをクリックで選ぶ。選ばずに閉じると破棄) |
 
 ### 自作Win風タスクバー (`taskbar.lua`)
 画面下に貼り付くタスクバーをディスプレイごとに表示。
@@ -127,7 +126,6 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | キー | Mac 前面 | Parallels 前面 (Coherence Winアプリ) |
 |---|---|---|
 | `H` `J` `K` `L` | ← ↓ ↑ → | (同左) |
-| `V` | 直前のウィンドウへフォーカス (Win風 Alt+Tab) | (同左) |
 | `Q` | Cmd+[ (戻る) | Alt+Left (Explorer/ブラウザ、AHK経由) |
 | `W` | Cmd+] (進む) | Alt+Right (Explorer/ブラウザ、AHK経由) |
 | `E` | Cmd+W (タブを閉じる) | (同左) |
@@ -138,16 +136,17 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | `R` | Mission Control (`mission_control` キー送出。Parallels問わず Mac 全体) | (同左) |
 | `1` | 左ディスプレイに移動+最大化 | (AHK経由で同等処理) |
 | `2` | 右ディスプレイに移動+最大化 | (AHK経由で同等処理) |
-| `C` | Mac 本体ディスプレイ (中央) に移動+最大化 | (AHK経由で同等処理) |
+| `C` | Mac 本体ディスプレイ (中央) に移動+最大化。400ms 以内にもう一度押すと上のディスプレイへ | (AHK経由で同等処理) |
 | `X` | 1200x750 リサイズ (位置維持) | (AHK経由で同等処理) |
 | `3` | Cmd+↑ (ドキュメント先頭) | Ctrl+Home |
 | `4` | Cmd+↓ (ドキュメント末尾) | Ctrl+End |
 | `7` | Cmd+← (行頭) | Home |
 | `8` | Cmd+→ (行末) | End |
-| `¥` | 範囲指定スクリーンショット (~/Downloads に保存+クリップボード) | (同左) |
-| `Backspace` | Forward Delete | (同左) |
+| `¥` | 範囲指定スクリーンショット (撮った後にクリップボードかファイルかを選ぶ) | (同左) |
+| スペース右 | Forward Delete。BS と同じく1回目は何も出さず、300ms 以内に続けて叩いた2回目以降が Delete。押したまま J/K/L を叩くと、叩くたびに Delete 1回 | (同左) |
 | `G` | Opt+Shift+G (Chrome 拡張用) | (同左) |
 | `Z` | Opt+Shift+Z (Chrome 拡張用) | (同左) |
+| `V` | Opt+Shift+V。Chrome 拡張 `split-tabs` が受けて、今のタブと右隣のタブをタブ分割表示で左右に並べる (分割中なら解除)。Chrome 以外では何もしない | (同左) |
 
 #### F13 記号サブレイヤー (Mac/Parallels 共通)
 
@@ -200,6 +199,7 @@ mkdir -p ~/.config/zero-reach-chrome && cp -R chrome-extension/* ~/.config/zero-
 2. Hammerspoon を再起動 (`init.lua` 自動読込)
 3. (Parallels Windows 連携を使う場合) VM 内で `karabiner/assets/ahk/parallels_window_move.ahk` を AutoHotkey v2 で実行
 4. Chrome の `chrome://extensions` でデベロッパーモードを ON →「パッケージ化されていない拡張機能を読み込む」で `~/.config/zero-reach-chrome/link-to-new-tab` を指定。F13+クリック (Chrome) でリンク先へ今のタブを遷移させ、F13+ミドルクリックで新しいタブ (バックグラウンド、フォーカスは元タブのまま) に開く。両者の違いは渡し先だけで、リンクの探し方は共通 (クリップボードへのコピーはしない。透明オーバーレイや same-origin の透明 iframe 越しでも下のリンクを拾う)。ここでのミドルクリックは Chrome での機能上の中ボタン (物理は右ボタン。Hammerspoon の右⇔中入れ替えが修飾キーを引き継いで中ボタンにする)。Karabiner は F13+左/右クリックを Cmd+Shift+同じボタンに変えるだけで、本体は拡張側。ページのスクリプトより先にイベントを捕まえて握りつぶすので、広告がクリックを横取りしない。内蔵トラックパッドのクリックは Karabiner が掴めないため外部マウスのみ (トラックパッドでは物理的に Cmd+Shift+クリックすれば同じ動作)。拡張を更新したら配り直して `chrome://extensions` で再読み込み
+5. 同じ手順で `~/.config/zero-reach-chrome/split-tabs` も読み込む (Chrome 155 以降)。F13+V で今のタブと右隣のタブを Chrome のタブ分割表示にし、分割中のタブで押すと解除する。右隣が無い、グループや固定の状態が違うなど Chrome が分割を断る場合は何もしない。ショートカットが付かないときは `chrome://extensions/shortcuts` で Opt+Shift+V を割り当てる
 
 ## 前提環境
 

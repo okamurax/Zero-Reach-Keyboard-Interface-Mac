@@ -57,21 +57,28 @@ local function setTargetSize(target, kind, w, h)
     end
 end
 
--- x座標で左から右にソートした N番目 (0始まり) のディスプレイを返す。
--- idx がディスプレイ数を超える場合は最右にクランプする。これは意図的で、
--- F13+2 (="右", idx=2/3画面想定) を常に最右に着地させるため。
--- ただしディスプレイ2枚以下では "中央" (idx=1) も最右に丸められる点に注意。
-local function screenAtIndex(idx)
-    local screens = hs.screen.allScreens()
-    if #screens == 0 then return nil end
-    table.sort(screens, function(a, b)
-        return a:fullFrame().x < b:fullFrame().x
-    end)
-    idx = math.max(0, math.min(idx, #screens - 1))
-    return screens[idx + 1]
+-- 移動先のディスプレイを役割で選ぶ。x 座標の並び順では選ばない
+-- (上に1枚足したら、その画面が並びの途中に入り、F13+2 が母艦へ、F13+C が上の画面へずれた)。
+--   left   = 左端が一番左の画面
+--   right  = 右端が一番右の画面
+--   center = 母艦 (メニューバーのある主画面。下段の中央)
+--   top    = 上端が一番上の画面 (母艦の上に置いた画面)
+local function screenFor(role)
+    if role == "center" then return hs.screen.primaryScreen() end
+    local best
+    for _, s in ipairs(hs.screen.allScreens()) do
+        local f = s:fullFrame()
+        if not best
+            or (role == "left" and f.x < best:fullFrame().x)
+            or (role == "right" and f.x + f.w > best:fullFrame().x + best:fullFrame().w)
+            or (role == "top" and f.y < best:fullFrame().y) then
+            best = s
+        end
+    end
+    return best
 end
 
--- 前面ウィンドウを idx 番目 (左から0始まり) のディスプレイへ移動+最大化する。
+-- 前面ウィンドウを role (left / right / center) のディスプレイへ移動+最大化する。
 -- fullFrame() ベースで決定論的に計算する。
 -- frame() (visibleFrame) は Dock の位置・auto-hide 状態で返り値が変わるため使わない。
 -- メニューバー高さは fullFrame と frame の差から検出 (Dock の有無に関係なく安定)。
@@ -80,10 +87,10 @@ end
 -- さらに余白を空けるのは、自作タスクバーのカーソルガード帯(透明帯 4px)に下端が埋もれて
 -- アプリ自身のリサイズカーソル(↕)が出たり消えたりするため。
 local TASKBAR_GAP = 8
-local function moveToDisplay(idx, dockw)
+local function moveToDisplay(role, dockw)
     dockw = dockw or 0
 
-    local screen = screenAtIndex(idx)
+    local screen = screenFor(role)
     if not screen then return end
 
     local full = screen:fullFrame()
@@ -108,22 +115,6 @@ local function moveToDisplay(idx, dockw)
         end
     end
     setTargetFrame(target, kind, x, y, w, h)
-end
-
--- 直前まで手前にあったウィンドウへフォーカスを移す (Win風 Alt+Tab の交互トグル)。
--- 状態は一切持たず、毎回ウィンドウサーバの重なり順 (orderedWindows) を読むだけ。
--- [1] は現在の手前窓なので、それ以外の最初の通常ウィンドウ = 直前の窓。
--- フォーカスは「読む」のではなく「セットする」だけなので Parallels の固着の影響を受けにくく、
--- 毎回作り直すため状態のズレも起きない。
-local function prevWindow()
-    local cur = hs.window.focusedWindow()
-    for _, w in ipairs(hs.window.orderedWindows()) do
-        if w ~= cur and w:isStandard()
-            and w:application() and w:application():bundleID() ~= "org.hammerspoon.Hammerspoon" then
-            w:focus()
-            return
-        end
-    end
 end
 
 -- 1200x750 固定サイズ。位置は変えない
@@ -169,15 +160,15 @@ end
 -- 修飾キーは付けない。Karabiner の from が optional:any で物理修飾キーを素通しするため、
 -- 修飾付きにすると Shift 等を巻き込んだ時にホットキーの完全一致から外れて不発になる。
 --
+-- F16 は空き (旧 F13+V の直前ウィンドウ。F13+V は Chrome のタブ分割に移した)。
 -- F16〜F20 を使い切り、macOS には F21 以降のキーコードが無いため、以降は
 -- Ctrl+Opt+Cmd+F16 のように修飾付きで増やす。上記の不発条件はあるが、
 -- 英数レイヤーのように物理修飾キーを併用しない操作に限れば実害はない
 -- (英数+E の ⌃⌥⌘F16 は DownloadsShelf が自前で受け、F13+¥ の ⌃⌥⌘F17 は下の撮影)。
 local TRIGGERS = {
-    { key = "f16", fn = prevWindow,      desc = "F13+V 直前のウィンドウ" },
-    { key = "f17", fn = function() moveToDisplay(0) end,     desc = "F13+1 左ディスプレイ" },
-    { key = "f18", fn = function() moveToDisplay(2) end,     desc = "F13+2 右ディスプレイ" },
-    { key = "f19", fn = function() moveToDisplay(1, 61) end, desc = "F13+C 中央ディスプレイ" },
+    { key = "f17", fn = function() moveToDisplay("left") end,       desc = "F13+1 左ディスプレイ" },
+    { key = "f18", fn = function() moveToDisplay("right") end,      desc = "F13+2 右ディスプレイ" },
+    { key = "f19", fn = function() moveToDisplay("center", 61) end, desc = "F13+C 中央ディスプレイ" },
     { key = "f20", fn = resizeModerate,  desc = "F13+X 1200x750" },
 }
 
@@ -191,17 +182,37 @@ for _, t in ipairs(TRIGGERS) do
     end
 end
 
--- F13+¥ (⌃⌥⌘F17): 範囲を選んで撮影し、~/Downloads への保存とクリップボードの両方に入れる。
--- macOS 標準の撮影キーは保存先をどちらか一方しか選べないため、screencapture でファイルに撮り、
--- 撮れた画像をクリップボードにも書く。Esc で取り消すとファイルができず、どちらにも何も残らない
-local function captureToFileAndClipboard()
-    local path = string.format("%s/Downloads/スクリーンショット %s.png", os.getenv("HOME"), os.date("%Y-%m-%d %H.%M.%S"))
+-- F13+¥ (⌃⌥⌘F17): 範囲を選んで撮影し、クリップボードかファイル (~/Downloads) かをその場で選ぶ。
+-- 一時ファイルに撮って画像をメモリに読んだら一時ファイルはすぐ消し、マウス位置に2行だけの
+-- メニューを出す。選ばずに閉じる (Esc や外をクリック) と何も残らない。連続撮影でクリップボード
+-- だけ使う時に ~/Downloads が不要なファイルで埋まらないようにするため
+local function captureWithChoice()
+    local tmp = string.format("%szr-capture-%d.png", hs.fs.temporaryDirectory(), os.time())
     hs.task.new("/usr/sbin/screencapture", function()
-        local img = hs.image.imageFromPath(path)
-        if img then hs.pasteboard.writeObjects(img) end
-    end, { "-i", path }):start()
+        local img = hs.image.imageFromPath(tmp)
+        os.remove(tmp)
+        if not img then return end
+        local menu = hs.menubar.new(false)
+        menu:setMenu({
+            { title = "クリップボード", fn = function() hs.pasteboard.writeObjects(img) end },
+            { title = "ファイル", fn = function()
+                img:saveToFile(string.format("%s/Downloads/スクリーンショット %s.png", os.getenv("HOME"), os.date("%Y-%m-%d %H.%M.%S")))
+            end },
+        })
+        menu:popupMenu(hs.mouse.absolutePosition())
+        menu:delete()
+    end, { "-i", tmp }):start()
 end
-captureHotkey = hs.hotkey.bind({ "ctrl", "alt", "cmd" }, "f17", captureToFileAndClipboard)
+captureHotkey = hs.hotkey.bind({ "ctrl", "alt", "cmd" }, "f17", captureWithChoice)
+
+-- F13+C を 400ms 以内に2回 (⌃⌥⌘F19): ウィンドウを上のディスプレイへ移動+最大化。
+-- 2回押しの判定は Karabiner 側 (HS は状態を持たない)。1回目の F19 で母艦へ移った後にここで上へ移す。
+-- 直後だと母艦への移動 (狭い幅) が後から効いて、上の画面で幅が足りなくなる。
+-- 0.3 秒後にもう一度合わせる (合っていれば moveToDisplay の無駄打ち防止で何もしない)
+topHotkey = hs.hotkey.bind({ "ctrl", "alt", "cmd" }, "f19", function()
+    moveToDisplay("top")
+    hs.timer.doAfter(0.3, function() moveToDisplay("top") end)
+end)
 
 -- Chrome: マウスセンターボタン⇔右クリック入れ替え
 -- （トラックパッド対応のため Karabiner ではなく Hammerspoon で処理）

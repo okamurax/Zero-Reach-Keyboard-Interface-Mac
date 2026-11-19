@@ -1,0 +1,16 @@
+{
+    "manifest_version": 3,
+    "name": "Zero-Reach Split Tabs",
+    "version": "1.0.0",
+    "description": "Opt+Shift+V (Karabiner の F13+V) で、今のタブと右隣のタブを Chrome のタブ分割表示で左右に並べる。分割中のタブで押すと解除する。Chrome 155 以降。",
+    "minimum_chrome_version": "155",
+    "background": {
+        "service_worker": "background.js"
+    },
+    "commands": {
+        "toggle-split": {
+            "suggested_key": { "default": "Alt+Shift+V" },
+            "description": "今のタブと右隣のタブを分割表示 (分割中なら解除)"
+        }
+    }
+}
