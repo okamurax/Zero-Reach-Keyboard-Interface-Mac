@@ -2071,8 +2071,26 @@
                         ]
                     },
                     {
-                        "description": "Left Control(→Command)+I = F7(カタカナ変換) ※日本語入力モード時のみ。英数モードでは素のCmd+I(Finderの情報を見る等)を通す",
+                        "description": "Left Control(→Command)+I = F7(カタカナ変換)、+U = F10(半角英数変換) ※日本語入力モード時のみ。英数モードでは素のCmd+I / Cmd+U を通す。他の修飾キー併用 (Cmd+Opt+I の開発者ツール等) は対象外",
                         "manipulators": [
+                            {
+                                "conditions": [
+                                    {
+                                        "input_sources": [{ "input_mode_id": "com\\.apple\\.inputmethod\\.Japanese" }],
+                                        "type": "input_source_if"
+                                    }
+                                ],
+                                "description": "Left Control(→Command)+U = F10 を6回 (Shift で始めた英字入力を、確定前に全部小文字の半角英数にする)。Google 日本語入力のキー設定で、入力中の F10 を「半角英数に変換」に変えてある前提。同じ表記は候補にまとめられるため、回る数が単語で変わる (Hello は Hello→HELLO→hello の3通り、E は E→e の2通り)。6回目なら3通りでも2通りでも小文字に当たる。GitHub のように途中に大文字がある語は4通りになり外れる",
+                                "from": {
+                                    "key_code": "u",
+                                    "modifiers": {
+                                        "mandatory": ["left_command"],
+                                        "optional": ["caps_lock"]
+                                    }
+                                },
+                                "to": [{ "key_code": "f10" }, { "key_code": "f10" }, { "key_code": "f10" }, { "key_code": "f10" }, { "key_code": "f10" }, { "key_code": "f10" }],
+                                "type": "basic"
+                            },
                             {
                                 "conditions": [
                                     {
@@ -2084,7 +2102,7 @@
                                     "key_code": "i",
                                     "modifiers": {
                                         "mandatory": ["left_command"],
-                                        "optional": ["any"]
+                                        "optional": ["caps_lock"]
                                     }
                                 },
                                 "to": [{ "key_code": "f7" }],
