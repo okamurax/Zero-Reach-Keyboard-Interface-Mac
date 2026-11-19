@@ -35,7 +35,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 | サブレイヤーキー | 無変換 | 英数 (= Tabキーを物理リマップ、`tab_held` 変数) |
 | ウィンドウ操作 | AHK 直接 | Hammerspoon (Karabiner からホットキー経由) |
 | タスクバー | Windows標準 / uBar | Hammerspoon 自作 (`taskbar.lua`) |
-| Parallels内 Windowsアプリ操作 | (該当なし) | VM内に AHK companion 常駐、Karabiner→Hammerspoon→AHK で操作トンネリング |
+| Parallels内 Windowsアプリ操作 | (該当なし) | VM内に AHK companion 常駐、Karabiner→Parallels→AHK で操作トンネリング (ウィンドウ移動は Parallels 前面でも Hammerspoon が直接処理) |
 | IME 切替 | 無変換 単押し → IME OFF | 英数 単押し → 英数 / 英数+F13 → かな (Parallels時は Win-IME ON/OFF に分岐) |
 | Cmd/Ctrl の関係 | (Win単独) | macOS 標準動作 ⇔ Parallels前面時は左Cmdを左Ctrl化する分岐 |
 
@@ -46,7 +46,7 @@ Karabiner-Elements + Hammerspoon による macOS キーボードカスタマイ�
 - **F13(英数)レイヤー** — F13 を保持しながら他キー押下で発火。矢印・タブ操作・ウィンドウ移動など多数。
 
 ### ウィンドウ管理 (Hammerspoon)
-- `moveToDisplay(idx, dockw)` — idx 番目のディスプレイ (左から0始まり) に移動+最大化。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。自作タスクバーの高さは `taskbar.lua` の `BAR_H` を直接参照する (値の二重管理を避けるため)。`idx` がディスプレイ数を超える場合は最右にクランプする (2画面では `idx=1` の「中央」も最右に丸まる)。
+- `moveToDisplay(role, dockw)` — role のディスプレイに移動+最大化。role は位置で選ぶ: `left` = 左端が一番左の画面、`right` = 右端が一番右の画面、`center` = 主画面 (メニューバーのある母艦)、`top` = 上端が一番上の画面。`fullFrame` ベース計算で Dock auto-hide 状態に依存しない。自作タスクバーの高さは `taskbar.lua` の `BAR_H` を直接参照する (値の二重管理を避けるため)。
 - `resizeModerate` — 1200x750 固定リサイズ (位置維持)。
 - DownloadsShelf (`downloads-shelf/`) を起動時に裏で立ち上げて常駐させる。英数+E の出し入れはアプリ自身が受ける (下記)。
 
@@ -105,7 +105,7 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | 右`Shift` | `Tab` |
 | `Tab` | 英数 (= 英数(Tab)レイヤーのトリガ) |
 | 英数 | `F13` (= F13レイヤーのトリガ) |
-| かな | `Backspace` |
+| かな | `F21` (試し中: 300ms 以内に続けて叩いた2回目以降が Backspace、押したまま J/K/L も Backspace。F13 と一緒なら同じ作りで Delete) |
 | 左`Cmd` ⇔ 左`Ctrl` | 役割入れ替え |
 
 ### 英数(Tab)レイヤー
@@ -134,18 +134,18 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | `D` | Cmd+Shift+T (閉じたタブを再開) | (同左) |
 | `F` | Cmd+R (更新) | F5 |
 | `R` | Mission Control (`mission_control` キー送出。Parallels問わず Mac 全体) | (同左) |
-| `1` | 左ディスプレイに移動+最大化 | (AHK経由で同等処理) |
-| `2` | 右ディスプレイに移動+最大化 | (AHK経由で同等処理) |
-| `C` | Mac 本体ディスプレイ (中央) に移動+最大化。400ms 以内にもう一度押すと上のディスプレイへ | (AHK経由で同等処理) |
-| `X` | 1200x750 リサイズ (位置維持) | (AHK経由で同等処理) |
+| `1` | 左ディスプレイに移動+最大化 | (同左。Hammerspoon が直接処理) |
+| `2` | 右ディスプレイに移動+最大化 | (同左。Hammerspoon が直接処理) |
+| `C` | Mac 本体ディスプレイ (中央) に移動+最大化。400ms 以内にもう一度押すと上のディスプレイへ | (同左。Hammerspoon が直接処理) |
+| `X` | 1200x750 リサイズ (位置維持) | (同左。Hammerspoon が直接処理) |
 | `3` | Cmd+↑ (ドキュメント先頭) | Ctrl+Home |
 | `4` | Cmd+↓ (ドキュメント末尾) | Ctrl+End |
 | `7` | Cmd+← (行頭) | Home |
 | `8` | Cmd+→ (行末) | End |
 | `¥` | 範囲指定スクリーンショット (撮った後にクリップボードかファイルかを選ぶ) | (同左) |
 | スペース右 | Forward Delete。BS と同じく1回目は何も出さず、300ms 以内に続けて叩いた2回目以降が Delete。押したまま J/K/L を叩くと、叩くたびに Delete 1回 | (同左) |
-| `G` | Opt+Shift+G (Chrome 拡張用) | (同左) |
-| `Z` | Opt+Shift+Z (Chrome 拡張用) | (同左) |
+| `G` | Opt+Shift+G (Chrome 拡張用)。Chrome 以外では何もしない | (同左) |
+| `Z` | Opt+Shift+Z (Chrome 拡張用)。Chrome 以外では何もしない | (同左) |
 | `V` | Opt+Shift+V。Chrome 拡張 `split-tabs` が受けて、今のタブと右隣のタブをタブ分割表示で左右に並べる (分割中なら解除)。Chrome 以外では何もしない | (同左) |
 
 #### F13 記号サブレイヤー (Mac/Parallels 共通)
@@ -170,7 +170,7 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | `]` | `$` | Shift+4 |
 | `_` | `\|` | Shift+international3 |
 
-F13 を押していない時の Shift+`_` (ろキー) は `\` (Mac: Option+international3 / Parallels: international3)。
+F13 を押していない時の Shift+`_` (ろキー) は `\` (Mac: Option+international3 / Parallels: international3)。ろキー単独は Mac・Parallels とも `_` (Parallels では Windows の JIS 配列に合わせて Shift+ろ を送る)。
 
 ### その他
 
@@ -181,7 +181,6 @@ F13 を押していない時の Shift+`_` (ろキー) は `\` (Mac: Option+inter
 | 左Cmd ダブルタップ (Parallels前面) | Cmd+Shift+V (Mac側 Clipy) |
 | 左Cmd 修飾時 (Parallels前面) | 左Ctrl として送出 |
 | 左Ctrl(=Cmd) + I | F7 (カタカナ変換)。日本語入力モード中のみ。英数モードでは素の Cmd+I が通る (Finder の「情報を見る」等)。他の修飾キーと一緒 (Cmd+Opt+I 等) なら置き換えない |
-| 左Ctrl(=Cmd) + U | F10 を6回。Shift で始めた英字入力 (Hello、1文字の E など) を確定前に全部小文字にする。表記の候補は同じものがまとめられて単語ごとに3通りか2通りで回るため、どちらでも小文字に当たる6回にしている (GitHub のように途中に大文字がある語は外れる)。日本語入力モード中のみ (Mac)。Google 日本語入力のキー設定で、入力中の F10 を「半角英数に変換」に変えておく必要がある (標準の「半角英数に表示」では Shift で始めた入力が変わらない)。英数モードや他の修飾キーと一緒なら素の Cmd+U |
 
 ## セットアップ
 

@@ -13,7 +13,7 @@
 local M = {}
 
 local BAR_H        = 43
--- ウィンドウ配置側 (init.lua の movetodisplay) がバー高さを差し引くために公開する。
+-- ウィンドウ配置側 (init.lua の moveToDisplay) がバー高さを差し引くために公開する。
 -- ここが唯一の定義。呼び出し側や Karabiner の URL に値を複製しないこと
 -- (複製すると BAR_H 変更時に無言でウィンドウがバーに潜り込む)。
 M.BAR_H = BAR_H
@@ -713,7 +713,10 @@ function M.start()
         end
     end):start()
 
-    refresh()
+    -- 直接 refresh() を呼ばずタイマー経由にする。ここで例外が出ると init.lua の読み込みが
+    -- 止まり、後ろで登録するホットキー類が全部無言で効かなくなるため。タイマー内の例外は
+    -- その回だけで止まり、init.lua の監視 (更新が途絶えたら作り直す) が拾う
+    scheduleRefresh()
 end
 
 function M.stop()

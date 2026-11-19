@@ -78,7 +78,7 @@ local function screenFor(role)
     return best
 end
 
--- 前面ウィンドウを role (left / right / center) のディスプレイへ移動+最大化する。
+-- 前面ウィンドウを role (left / right / center / top) のディスプレイへ移動+最大化する。
 -- fullFrame() ベースで決定論的に計算する。
 -- frame() (visibleFrame) は Dock の位置・auto-hide 状態で返り値が変わるため使わない。
 -- メニューバー高さは fullFrame と frame の差から検出 (Dock の有無に関係なく安定)。
@@ -145,6 +145,38 @@ if not hs.application.get("local.zero-reach.downloads-shelf") then
     hs.task.new("/usr/bin/open", nil, { "-g", "-b", "local.zero-reach.downloads-shelf" }):start()
 end
 
+-- F13+¥ (⌃⌥⌘F17): 範囲を選んで撮影し、クリップボードかファイル (~/Downloads) かをその場で選ぶ。
+-- 一時ファイルに撮って画像をメモリに読んだら一時ファイルはすぐ消し、マウス位置に2行だけの
+-- メニューを出す。選ばずに閉じる (Esc や外をクリック) と何も残らない。連続撮影でクリップボード
+-- だけ使う時に ~/Downloads が不要なファイルで埋まらないようにするため
+local captureTask  -- 撮影中 (範囲を選ぶ間) に GC されて終了処理が呼ばれなくならないよう保持する
+local function captureWithChoice()
+    local tmp = string.format("%szr-capture-%d.png", hs.fs.temporaryDirectory(), os.time())
+    captureTask = hs.task.new("/usr/sbin/screencapture", function()
+        local img = hs.image.imageFromPath(tmp)
+        os.remove(tmp)
+        if not img then return end
+        local menu = hs.menubar.new(false)
+        menu:setMenu({
+            { title = "クリップボード", fn = function() hs.pasteboard.writeObjects(img) end },
+            { title = "ファイル", fn = function()
+                img:saveToFile(string.format("%s/Downloads/スクリーンショット %s.png", os.getenv("HOME"), os.date("%Y-%m-%d %H.%M.%S")))
+            end },
+        })
+        menu:popupMenu(hs.mouse.absolutePosition())
+        menu:delete()
+    end, { "-i", tmp }):start()
+end
+
+-- F13+C を 400ms 以内に2回 (⌃⌥⌘F19): ウィンドウを上のディスプレイへ移動+最大化。
+-- 2回押しの判定は Karabiner 側 (HS は状態を持たない)。1回目の F19 で母艦へ移った後にここで上へ移す。
+-- 直後だと母艦への移動 (狭い幅) が後から効いて、上の画面で幅が足りなくなる。
+-- 0.3 秒後にもう一度合わせる (合っていれば moveToDisplay の無駄打ち防止で何もしない)
+local function moveToTop()
+    moveToDisplay("top")
+    hs.timer.doAfter(0.3, function() moveToDisplay("top") end)
+end
+
 -- Karabiner からのウィンドウ操作トリガ (F13レイヤー)。
 --
 -- 以前は Karabiner の shell_command で `open -g 'hammerspoon://...'` を叩いていたが、
@@ -164,55 +196,26 @@ end
 -- F16〜F20 を使い切り、macOS には F21 以降のキーコードが無いため、以降は
 -- Ctrl+Opt+Cmd+F16 のように修飾付きで増やす。上記の不発条件はあるが、
 -- 英数レイヤーのように物理修飾キーを併用しない操作に限れば実害はない
--- (英数+E の ⌃⌥⌘F16 は DownloadsShelf が自前で受け、F13+¥ の ⌃⌥⌘F17 は下の撮影)。
+-- (英数+E の ⌃⌥⌘F16 は DownloadsShelf が自前で受け、F13+¥ の ⌃⌥⌘F17 と F13+C 2回の ⌃⌥⌘F19 は下の表)。
+local HYPER = { "ctrl", "alt", "cmd" }
 local TRIGGERS = {
     { key = "f17", fn = function() moveToDisplay("left") end,       desc = "F13+1 左ディスプレイ" },
     { key = "f18", fn = function() moveToDisplay("right") end,      desc = "F13+2 右ディスプレイ" },
     { key = "f19", fn = function() moveToDisplay("center", 61) end, desc = "F13+C 中央ディスプレイ" },
     { key = "f20", fn = resizeModerate,  desc = "F13+X 1200x750" },
+    { mods = HYPER, key = "f17", fn = captureWithChoice, desc = "F13+¥ 範囲指定スクリーンショット" },
+    { mods = HYPER, key = "f19", fn = moveToTop,         desc = "F13+C 2回 上ディスプレイ" },
 }
 
 triggerHotkeys = {}
 for _, t in ipairs(TRIGGERS) do
-    local hk = hs.hotkey.bind({}, t.key, t.fn)
+    local hk = hs.hotkey.bind(t.mods or {}, t.key, t.fn)
     if hk then
         triggerHotkeys[#triggerHotkeys + 1] = hk
     else
         hs.printf("[trigger] failed to bind %s (%s)", t.key, t.desc)
     end
 end
-
--- F13+¥ (⌃⌥⌘F17): 範囲を選んで撮影し、クリップボードかファイル (~/Downloads) かをその場で選ぶ。
--- 一時ファイルに撮って画像をメモリに読んだら一時ファイルはすぐ消し、マウス位置に2行だけの
--- メニューを出す。選ばずに閉じる (Esc や外をクリック) と何も残らない。連続撮影でクリップボード
--- だけ使う時に ~/Downloads が不要なファイルで埋まらないようにするため
-local function captureWithChoice()
-    local tmp = string.format("%szr-capture-%d.png", hs.fs.temporaryDirectory(), os.time())
-    hs.task.new("/usr/sbin/screencapture", function()
-        local img = hs.image.imageFromPath(tmp)
-        os.remove(tmp)
-        if not img then return end
-        local menu = hs.menubar.new(false)
-        menu:setMenu({
-            { title = "クリップボード", fn = function() hs.pasteboard.writeObjects(img) end },
-            { title = "ファイル", fn = function()
-                img:saveToFile(string.format("%s/Downloads/スクリーンショット %s.png", os.getenv("HOME"), os.date("%Y-%m-%d %H.%M.%S")))
-            end },
-        })
-        menu:popupMenu(hs.mouse.absolutePosition())
-        menu:delete()
-    end, { "-i", tmp }):start()
-end
-captureHotkey = hs.hotkey.bind({ "ctrl", "alt", "cmd" }, "f17", captureWithChoice)
-
--- F13+C を 400ms 以内に2回 (⌃⌥⌘F19): ウィンドウを上のディスプレイへ移動+最大化。
--- 2回押しの判定は Karabiner 側 (HS は状態を持たない)。1回目の F19 で母艦へ移った後にここで上へ移す。
--- 直後だと母艦への移動 (狭い幅) が後から効いて、上の画面で幅が足りなくなる。
--- 0.3 秒後にもう一度合わせる (合っていれば moveToDisplay の無駄打ち防止で何もしない)
-topHotkey = hs.hotkey.bind({ "ctrl", "alt", "cmd" }, "f19", function()
-    moveToDisplay("top")
-    hs.timer.doAfter(0.3, function() moveToDisplay("top") end)
-end)
 
 -- Chrome: マウスセンターボタン⇔右クリック入れ替え
 -- （トラックパッド対応のため Karabiner ではなく Hammerspoon で処理）

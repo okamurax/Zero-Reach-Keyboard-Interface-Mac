@@ -26,7 +26,7 @@
                         ]
                     },
                     {
-                        "description": "【試し中】スペース右 (かな) は BS でなく F21 (simple_modifications)。単独の1回目は何も出さず、前の押下から 300ms 以内に続けて叩いた2回目以降が押した瞬間に BS。変数を2つ (f21_tap_a / f21_tap_b) 交互に使う (1つだと、次の押下で前の押下の待ちが取り消された時に、立てたばかりの変数を倒してしまい3回目が出ない)。押している間 bs_held を 1 にする。BS はスペース右+J/K/L で、叩くたびに1回 (押してすぐ離す)。F13+スペース右も同じ作りで BS の代わりに Delete (1回目は何も出さず、続けて叩いた2回目以降と、押したままの J/K/L が Delete)。F13+BS は従来どおり。戻すなら d551010 (スペース右=BS のまま A/S/D/F も BS) か 9bef97c (BS+A/S/D/F 自体が無い)",
+                        "description": "【試し中】スペース右 (かな) は BS でなく F21 (simple_modifications)。単独の1回目は何も出さず、前の押下から 300ms 以内に続けて叩いた2回目以降が押した瞬間に BS。変数を2つ (f21_tap_a / f21_tap_b) 交互に使う (1つだと、次の押下で前の押下の待ちが取り消された時に、立てたばかりの変数を倒してしまい3回目が出ない)。押している間 bs_held を 1 にする。BS はスペース右+J/K/L で、叩くたびに1回 (押してすぐ離す)。F13+スペース右も同じ作りで BS の代わりに Delete (1回目は何も出さず、続けて叩いた2回目以降と、押したままの J/K/L が Delete)。以前の作りに戻す手がかりはコミット 832aac5 のメッセージと git log を参照",
                         "manipulators": [
                             {
                                 "description": "続けて叩いた偶数回目 (前の押下から 300ms 以内): BS 1 回、f21_tap_b を立てる",
@@ -125,7 +125,7 @@
                         ]
                     },
                     {
-                        "description": "Shift+_ (JIS のろキー) = \\ (バックスラッシュ)",
+                        "description": "Shift+_ (JIS のろキー) = \\ (バックスラッシュ)、ろ単押し = _ (Parallels でも Mac と同じにする)",
                         "manipulators": [
                             {
                                 "description": "Parallels: Windows の JIS では ¥ キー単押しがバックスラッシュ",
@@ -143,11 +143,21 @@
                                 "from": { "key_code": "international1", "modifiers": { "mandatory": ["shift"], "optional": ["caps_lock"] } },
                                 "conditions": [{ "type": "variable_unless", "name": "f13_pressed", "value": 1 }],
                                 "to": [{ "key_code": "international3", "modifiers": ["left_option"] }]
+                            },
+                            {
+                                "description": "Parallels: ろキー単押し = _ (Windows の JIS では、ろ単押しが \\ で Shift+ろ が _。Mac に揃えて入れ替える)",
+                                "type": "basic",
+                                "from": { "key_code": "international1", "modifiers": { "optional": ["caps_lock"] } },
+                                "conditions": [
+                                    { "type": "variable_unless", "name": "f13_pressed", "value": 1 },
+                                    { "type": "frontmost_application_if", "bundle_identifiers": ["^com\\.parallels\\.desktop\\.console$", "^com\\.parallels\\.winapp\\."] }
+                                ],
+                                "to": [{ "key_code": "international1", "modifiers": ["left_shift"] }]
                             }
                         ]
                     },
                     {
-                        "description": "英数キー単押し=英数、ダブルタップ=日本語切替、英数+Q=ESC、英数+4=Enter、英数+W=Spotlight(Cmd+F14)、いずれもMac/Parallels両対応",
+                        "description": "英数キー単押し=英数 (Parallels では Win IME OFF)、英数+F13=かな (Parallels では Win IME ON)、英数+Q=ESC、英数+1=.、英数+3=BS、英数+4=Enter、英数+W=Spotlight(Cmd+F14)、英数+E=DownloadsShelf、いずれもMac/Parallels両対応",
                         "manipulators": [
                             {
                                 "conditions": [
@@ -246,7 +256,7 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "英数+W = Cmd+F14 (Spotlight)。macOS側で SpotlightをCmd+F14に登録済み (symbolichotkeys ID:64)。F14系はParallelsがグラブしないためMac/Parallels両対応 (AltTabのCmd+F13と同じ思想)",
+                                "description": "英数+W = Cmd+F14 (Spotlight)。macOS側で SpotlightをCmd+F14に登録済み (symbolichotkeys ID:64)。F14系はParallelsがグラブしないためMac/Parallels両対応",
                                 "from": {
                                     "key_code": "w",
                                     "modifiers": { "optional": ["any"] }
@@ -272,7 +282,7 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "英数+E = Ctrl+Opt+Cmd+F16 (ダウンロードフォルダの置き場 DownloadsShelf をトグル)。DownloadsShelf 自身の Carbon ホットキーで受ける。F16〜F20は F13 レイヤーで使い切ったため修飾付き。Mac/Parallels両対応",
+                                "description": "英数+E = Ctrl+Opt+Cmd+F16 (ダウンロードフォルダの置き場 DownloadsShelf をトグル)。DownloadsShelf 自身の Carbon ホットキーで受ける。素の F16〜F20 は F13 レイヤー用に取ってあるため修飾付き。Mac/Parallels両対応",
                                 "from": {
                                     "key_code": "e",
                                     "modifiers": { "optional": ["any"] }
@@ -1392,9 +1402,13 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": ["^com\\.google\\.Chrome$"],
+                                        "type": "frontmost_application_if"
                                     }
                                 ],
-                                "description": "F13+G = Option+Shift+G (Chrome用)",
+                                "description": "F13+G (Chrome) = Option+Shift+G (Chrome 拡張用)",
                                 "from": {
                                     "key_code": "g",
                                     "modifiers": { "optional": ["any"] }
@@ -1415,7 +1429,27 @@
                                         "value": 1
                                     }
                                 ],
-                                "description": "F13+Z = Option+Shift+Z (Chrome用)",
+                                "description": "F13+G (Chrome 以外) = 何もしない (Mac の入力欄で記号、Windows で Alt+Shift を出さない)",
+                                "from": {
+                                    "key_code": "g",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "vk_none" }],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    },
+                                    {
+                                        "bundle_identifiers": ["^com\\.google\\.Chrome$"],
+                                        "type": "frontmost_application_if"
+                                    }
+                                ],
+                                "description": "F13+Z (Chrome) = Option+Shift+Z (Chrome 拡張用)",
                                 "from": {
                                     "key_code": "z",
                                     "modifiers": { "optional": ["any"] }
@@ -1426,6 +1460,22 @@
                                         "modifiers": ["left_option", "left_shift"]
                                     }
                                 ],
+                                "type": "basic"
+                            },
+                            {
+                                "conditions": [
+                                    {
+                                        "name": "f13_pressed",
+                                        "type": "variable_if",
+                                        "value": 1
+                                    }
+                                ],
+                                "description": "F13+Z (Chrome 以外) = 何もしない (Mac の入力欄で記号、Windows で Alt+Shift を出さない)",
+                                "from": {
+                                    "key_code": "z",
+                                    "modifiers": { "optional": ["any"] }
+                                },
+                                "to": [{ "key_code": "vk_none" }],
                                 "type": "basic"
                             },
                             {
@@ -2071,26 +2121,8 @@
                         ]
                     },
                     {
-                        "description": "Left Control(→Command)+I = F7(カタカナ変換)、+U = F10(半角英数変換) ※日本語入力モード時のみ。英数モードでは素のCmd+I / Cmd+U を通す。他の修飾キー併用 (Cmd+Opt+I の開発者ツール等) は対象外",
+                        "description": "Left Control(→Command)+I = F7(カタカナ変換) ※日本語入力モード時のみ。英数モードでは素のCmd+I(Finderの情報を見る等)を通す。他の修飾キー併用 (Cmd+Opt+I の開発者ツール等) は対象外",
                         "manipulators": [
-                            {
-                                "conditions": [
-                                    {
-                                        "input_sources": [{ "input_mode_id": "com\\.apple\\.inputmethod\\.Japanese" }],
-                                        "type": "input_source_if"
-                                    }
-                                ],
-                                "description": "Left Control(→Command)+U = F10 を6回 (Shift で始めた英字入力を、確定前に全部小文字の半角英数にする)。Google 日本語入力のキー設定で、入力中の F10 を「半角英数に変換」に変えてある前提。同じ表記は候補にまとめられるため、回る数が単語で変わる (Hello は Hello→HELLO→hello の3通り、E は E→e の2通り)。6回目なら3通りでも2通りでも小文字に当たる。GitHub のように途中に大文字がある語は4通りになり外れる",
-                                "from": {
-                                    "key_code": "u",
-                                    "modifiers": {
-                                        "mandatory": ["left_command"],
-                                        "optional": ["caps_lock"]
-                                    }
-                                },
-                                "to": [{ "key_code": "f10" }, { "key_code": "f10" }, { "key_code": "f10" }, { "key_code": "f10" }, { "key_code": "f10" }, { "key_code": "f10" }],
-                                "type": "basic"
-                            },
                             {
                                 "conditions": [
                                     {
