@@ -27,7 +27,7 @@
 //   - 箱ごとにサムネイル / リスト表示を切り替えられる (見出しの右のボタン)
 //   - 見出しをクリックで開閉、上下にドラッグで並べ替え (入力欄・ボタン以外の部分)
 // - 配色は Mattermost のサイドバー (既定テーマ Denim、背景はより濃く) に寄せている。ライト/ダークに関係なく固定
-// - 選択が 1 つの時、Enter かタイトルバーの「名前を変更」で名前を変える (手順は rename(_:to:) の説明)
+// - 選択が 1 つの時、Enter かタイトルバーの「名前を変更」で名前を変える (手順は RenameFile.swift の説明)
 // ゴミ箱へ移す・名前の変更以外のファイル操作は持たない (Finder に任せる)。
 
 import AppKit
@@ -1458,44 +1458,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         }
     }
 
-    // ファイルを失わないための手順:
-    // - 変更先は必ず同じフォルダ。renamex_np 1 回で名前だけを差し替える (コピー+削除はしない)。
-    //   失敗しても元のファイルはそのまま残り、途中の状態は存在しない
-    // - RENAME_EXCL で、変更先に同名のファイルがあれば上書きせず失敗させる。事前に有無を調べてから変える方式と違い、
-    //   調べてから変えるまでの間に同名ができても上書きしない
-    // - 大文字小文字・濁点の合成/分解だけが違う名前は、APFS では同じファイルを指すので RENAME_EXCL が「既にある」で
-    //   失敗する。変更先が元と同じファイル (同じデバイス・inode) だと確かめた時だけ、RENAME_EXCL 無しで変える
-    // - 名前は区切り文字 (/ と :)・先頭の .・255 バイト超を拒否する (: は Finder では / に見え、. 始まりは隠しファイルになる)
+    // 手順 (ファイルを失わないための工夫) は RenameFile.swift の renameInPlace の説明
     func rename(_ src: URL, to name: String) {
-        let old = src.lastPathComponent
-        if name == old { return }
-        if let problem = invalidReason(name) { showRenameError(old, problem); return }
-        let dst = src.deletingLastPathComponent().appendingPathComponent(name)
-        var result = renamex_np(src.path, dst.path, UInt32(RENAME_EXCL))
-        if result != 0 && errno == EEXIST && sameFile(src, dst) {
-            result = renamex_np(src.path, dst.path, 0)
-        }
-        if result != 0 {
-            let reason = errno == EEXIST ? "同じ名前のファイルが既にあります。" : String(cString: strerror(errno))
-            showRenameError(old, reason)
+        switch renameInPlace(src, to: name) {
+        case .unchanged:
             return
+        case .rejected(let reason), .failed(let reason):
+            showRenameError(src.lastPathComponent, reason)
+        case .renamed(let dst):
+            // 表示はフォルダ監視の再読込で更新される。その時に新しい名前のファイルを選択し直す
+            selectAfterReload = dst
         }
-        // 表示はフォルダ監視の再読込で更新される。その時に新しい名前のファイルを選択し直す
-        selectAfterReload = dst
-    }
-
-    func invalidReason(_ name: String) -> String? {
-        if name.isEmpty { return "名前が空です。" }
-        if name.contains("/") || name.contains(":") { return "「/」と「:」は使えません。" }
-        if name.hasPrefix(".") { return "「.」で始まる名前は隠しファイルになるため使えません。" }
-        if name.utf8.count > 255 { return "名前が長すぎます。" }
-        return nil
-    }
-
-    func sameFile(_ a: URL, _ b: URL) -> Bool {
-        var sa = stat(), sb = stat()
-        guard lstat(a.path, &sa) == 0, lstat(b.path, &sb) == 0 else { return false }
-        return sa.st_dev == sb.st_dev && sa.st_ino == sb.st_ino
     }
 
     func showRenameError(_ old: String, _ reason: String) {
@@ -1506,9 +1479,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         alert.beginSheetModal(for: window)
     }
 }
-
-let app = NSApplication.shared
-let delegate = AppDelegate()
-app.delegate = delegate
-app.setActivationPolicy(.accessory)
-app.run()

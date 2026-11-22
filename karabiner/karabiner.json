@@ -26,7 +26,7 @@
                         ]
                     },
                     {
-                        "description": "【試し中】スペース右 (かな) は BS でなく F21 (simple_modifications)。単独の1回目は何も出さず、前の押下から 300ms 以内に続けて叩いた2回目以降が押した瞬間に BS。変数を2つ (f21_tap_a / f21_tap_b) 交互に使う (1つだと、次の押下で前の押下の待ちが取り消された時に、立てたばかりの変数を倒してしまい3回目が出ない)。押している間 bs_held を 1 にする。BS はスペース右+J/K/L で、叩くたびに1回 (押してすぐ離す)。F13+スペース右も同じ作りで BS の代わりに Delete (1回目は何も出さず、続けて叩いた2回目以降と、押したままの J/K/L が Delete)。以前の作りに戻す手がかりはコミット 832aac5 のメッセージと git log を参照",
+                        "description": "【試し中】スペース右 (かな) は BS でなく F21 (simple_modifications)。単独の1回目は何も出さず、前の押下から 300ms 以内に続けて叩いた2回目以降が押した瞬間に BS。変数を2つ (f21_tap_a / f21_tap_b) 交互に使う (1つだと、次の押下で前の押下の待ちが取り消された時に、立てたばかりの変数を倒してしまい3回目が出ない)。押している間 bs_held を 1 にする。BS はスペース右+J/K/L で、叩くたびに1回 (押してすぐ離す)。F13+スペース右は押した瞬間に Delete (F13 レイヤー側のルール)。以前の作りに戻す手がかりはコミット 832aac5 のメッセージと git log を参照",
                         "manipulators": [
                             {
                                 "description": "続けて叩いた偶数回目 (前の押下から 300ms 以内): BS 1 回、f21_tap_b を立てる",
@@ -85,24 +85,6 @@
                                 },
                                 "parameters": { "basic.to_delayed_action_delay_milliseconds": 300 },
                                 "to_after_key_up": [{ "set_variable": { "name": "bs_held", "value": 0 } }]
-                            },
-                            {
-                                "type": "basic",
-                                "from": { "key_code": "j", "modifiers": { "optional": ["any"] } },
-                                "to": [{ "key_code": "delete_forward" }, { "key_code": "vk_none" }],
-                                "conditions": [{ "type": "variable_if", "name": "del_held", "value": 1 }]
-                            },
-                            {
-                                "type": "basic",
-                                "from": { "key_code": "k", "modifiers": { "optional": ["any"] } },
-                                "to": [{ "key_code": "delete_forward" }, { "key_code": "vk_none" }],
-                                "conditions": [{ "type": "variable_if", "name": "del_held", "value": 1 }]
-                            },
-                            {
-                                "type": "basic",
-                                "from": { "key_code": "l", "modifiers": { "optional": ["any"] } },
-                                "to": [{ "key_code": "delete_forward" }, { "key_code": "vk_none" }],
-                                "conditions": [{ "type": "variable_if", "name": "del_held", "value": 1 }]
                             },
                             {
                                 "type": "basic",
@@ -823,206 +805,14 @@
                                         "name": "f13_pressed",
                                         "type": "variable_if",
                                         "value": 1
-                                    },
-                                    {
-                                        "name": "del_tap_a",
-                                        "type": "variable_if",
-                                        "value": 1
                                     }
                                 ],
-                                "description": "F13+スペース右 (F21) の続けて叩いた偶数回目 (前の押下から 300ms 以内) = Delete 1回 (押してすぐ離す)。BS (2番目のルール) と同じ作りで、変数は del_tap_a / del_tap_b を交互に使う。押している間 del_held を 1 にし、J/K/L も Delete になる",
+                                "description": "F13+スペース右 (F21) = Delete (Forward Delete)",
                                 "from": {
                                     "key_code": "f21",
-                                    "modifiers": {
-                                        "optional": [
-                                            "any"
-                                        ]
-                                    }
+                                    "modifiers": { "optional": ["any"] }
                                 },
-                                "to": [
-                                    {
-                                        "key_code": "delete_forward"
-                                    },
-                                    {
-                                        "key_code": "vk_none"
-                                    },
-                                    {
-                                        "set_variable": {
-                                            "name": "del_tap_b",
-                                            "value": 1
-                                        }
-                                    },
-                                    {
-                                        "set_variable": {
-                                            "name": "del_held",
-                                            "value": 1
-                                        }
-                                    }
-                                ],
-                                "to_delayed_action": {
-                                    "to_if_invoked": [
-                                        {
-                                            "set_variable": {
-                                                "name": "del_tap_b",
-                                                "value": 0
-                                            }
-                                        }
-                                    ],
-                                    "to_if_canceled": [
-                                        {
-                                            "set_variable": {
-                                                "name": "del_tap_b",
-                                                "value": 0
-                                            }
-                                        }
-                                    ]
-                                },
-                                "parameters": {
-                                    "basic.to_delayed_action_delay_milliseconds": 300
-                                },
-                                "to_after_key_up": [
-                                    {
-                                        "set_variable": {
-                                            "name": "del_held",
-                                            "value": 0
-                                        }
-                                    }
-                                ],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    },
-                                    {
-                                        "name": "del_tap_b",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    }
-                                ],
-                                "description": "F13+スペース右 (F21) の続けて叩いた奇数回目 (3回目以降) = Delete 1回",
-                                "from": {
-                                    "key_code": "f21",
-                                    "modifiers": {
-                                        "optional": [
-                                            "any"
-                                        ]
-                                    }
-                                },
-                                "to": [
-                                    {
-                                        "key_code": "delete_forward"
-                                    },
-                                    {
-                                        "key_code": "vk_none"
-                                    },
-                                    {
-                                        "set_variable": {
-                                            "name": "del_tap_a",
-                                            "value": 1
-                                        }
-                                    },
-                                    {
-                                        "set_variable": {
-                                            "name": "del_held",
-                                            "value": 1
-                                        }
-                                    }
-                                ],
-                                "to_delayed_action": {
-                                    "to_if_invoked": [
-                                        {
-                                            "set_variable": {
-                                                "name": "del_tap_a",
-                                                "value": 0
-                                            }
-                                        }
-                                    ],
-                                    "to_if_canceled": [
-                                        {
-                                            "set_variable": {
-                                                "name": "del_tap_a",
-                                                "value": 0
-                                            }
-                                        }
-                                    ]
-                                },
-                                "parameters": {
-                                    "basic.to_delayed_action_delay_milliseconds": 300
-                                },
-                                "to_after_key_up": [
-                                    {
-                                        "set_variable": {
-                                            "name": "del_held",
-                                            "value": 0
-                                        }
-                                    }
-                                ],
-                                "type": "basic"
-                            },
-                            {
-                                "conditions": [
-                                    {
-                                        "name": "f13_pressed",
-                                        "type": "variable_if",
-                                        "value": 1
-                                    }
-                                ],
-                                "description": "F13+スペース右 (F21) の1回目 = 何も出さず del_tap_a を立てる",
-                                "from": {
-                                    "key_code": "f21",
-                                    "modifiers": {
-                                        "optional": [
-                                            "any"
-                                        ]
-                                    }
-                                },
-                                "to": [
-                                    {
-                                        "set_variable": {
-                                            "name": "del_tap_a",
-                                            "value": 1
-                                        }
-                                    },
-                                    {
-                                        "set_variable": {
-                                            "name": "del_held",
-                                            "value": 1
-                                        }
-                                    }
-                                ],
-                                "to_delayed_action": {
-                                    "to_if_invoked": [
-                                        {
-                                            "set_variable": {
-                                                "name": "del_tap_a",
-                                                "value": 0
-                                            }
-                                        }
-                                    ],
-                                    "to_if_canceled": [
-                                        {
-                                            "set_variable": {
-                                                "name": "del_tap_a",
-                                                "value": 0
-                                            }
-                                        }
-                                    ]
-                                },
-                                "parameters": {
-                                    "basic.to_delayed_action_delay_milliseconds": 300
-                                },
-                                "to_after_key_up": [
-                                    {
-                                        "set_variable": {
-                                            "name": "del_held",
-                                            "value": 0
-                                        }
-                                    }
-                                ],
+                                "to": [{ "key_code": "delete_forward" }],
                                 "type": "basic"
                             },
                             {

@@ -105,7 +105,7 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | 右`Shift` | `Tab` |
 | `Tab` | 英数 (= 英数(Tab)レイヤーのトリガ) |
 | 英数 | `F13` (= F13レイヤーのトリガ) |
-| かな | `F21` (試し中: 300ms 以内に続けて叩いた2回目以降が Backspace、押したまま J/K/L も Backspace。F13 と一緒なら同じ作りで Delete) |
+| かな | `F21` (試し中: 300ms 以内に続けて叩いた2回目以降が Backspace、押したまま J/K/L も Backspace。F13 と一緒なら押した瞬間に Delete) |
 | 左`Cmd` ⇔ 左`Ctrl` | 役割入れ替え |
 
 ### 英数(Tab)レイヤー
@@ -143,7 +143,8 @@ AX の応答待ちは `hs.window.timeout(1)` で1秒に制限している。既�
 | `7` | Cmd+← (行頭) | Home |
 | `8` | Cmd+→ (行末) | End |
 | `¥` | 範囲指定スクリーンショット (撮った後にクリップボードかファイルかを選ぶ) | (同左) |
-| スペース右 | Forward Delete。BS と同じく1回目は何も出さず、300ms 以内に続けて叩いた2回目以降が Delete。押したまま J/K/L を叩くと、叩くたびに Delete 1回 | (同左) |
+| `^` | Ctrl+Shift+Cmd+P (Presentify の画面への書き込みを開始/終了。Presentify 側のグローバルショートカットに登録しておく) | (同左) |
+| スペース右 | Forward Delete | (同左) |
 | `G` | Opt+Shift+G (Chrome 拡張用)。Chrome 以外では何もしない | (同左) |
 | `Z` | Opt+Shift+Z (Chrome 拡張用)。Chrome 以外では何もしない | (同左) |
 | `V` | Opt+Shift+V。Chrome 拡張 `split-tabs` が受けて、今のタブと右隣のタブをタブ分割表示で左右に並べる (分割中なら解除)。Chrome 以外では何もしない | (同左) |
@@ -176,11 +177,12 @@ F13 を押していない時の Shift+`_` (ろキー) は `\` (Mac: Option+inter
 
 | 操作 | 機能 |
 |---|---|
-| Cmd+C ダブルタップ | 行選択+コピー (500ms以内) |
+| Cmd+C ダブルタップ | 行選択+コピー (500ms以内)。Parallels 前面では End → Shift+Home → Ctrl+C |
 | 左Cmd ダブルタップ (Mac) | Cmd+Shift+V (Clipy) |
 | 左Cmd ダブルタップ (Parallels前面) | Cmd+Shift+V (Mac側 Clipy) |
 | 左Cmd 修飾時 (Parallels前面) | 左Ctrl として送出 |
 | 左Ctrl(=Cmd) + I | F7 (カタカナ変換)。日本語入力モード中のみ。英数モードでは素の Cmd+I が通る (Finder の「情報を見る」等)。他の修飾キーと一緒 (Cmd+Opt+I 等) なら置き換えない |
+| draw.io 前面 | 左Cmd ⇔ 左Ctrl の入れ替えを打ち消し、物理キーどおりに戻す |
 
 ## セットアップ
 
@@ -200,6 +202,19 @@ mkdir -p ~/.config/zero-reach-chrome && cp -R chrome-extension/* ~/.config/zero-
 3. (Parallels Windows 連携を使う場合) VM 内で `karabiner/assets/ahk/parallels_window_move.ahk` を AutoHotkey v2 で実行
 4. Chrome の `chrome://extensions` でデベロッパーモードを ON →「パッケージ化されていない拡張機能を読み込む」で `~/.config/zero-reach-chrome/link-to-new-tab` を指定。F13+クリック (Chrome) でリンク先へ今のタブを遷移させ、F13+ミドルクリックで新しいタブ (バックグラウンド、フォーカスは元タブのまま) に開く。両者の違いは渡し先だけで、リンクの探し方は共通 (クリップボードへのコピーはしない。透明オーバーレイや same-origin の透明 iframe 越しでも下のリンクを拾う)。ここでのミドルクリックは Chrome での機能上の中ボタン (物理は右ボタン。Hammerspoon の右⇔中入れ替えが修飾キーを引き継いで中ボタンにする)。Karabiner は F13+左/右クリックを Cmd+Shift+同じボタンに変えるだけで、本体は拡張側。ページのスクリプトより先にイベントを捕まえて握りつぶすので、広告がクリックを横取りしない。内蔵トラックパッドのクリックは Karabiner が掴めないため外部マウスのみ (トラックパッドでは物理的に Cmd+Shift+クリックすれば同じ動作)。拡張を更新したら配り直して `chrome://extensions` で再読み込み
 5. 同じ手順で `~/.config/zero-reach-chrome/split-tabs` も読み込む (Chrome 155 以降)。F13+V で今のタブと右隣のタブを Chrome のタブ分割表示にし、分割中のタブで押すと解除する。右隣が無い、グループや固定の状態が違うなど Chrome が分割を断る場合は何もしない。ショートカットが付かないときは `chrome://extensions/shortcuts` で Opt+Shift+V を割り当てる
+
+## 検査 (`tests/`)
+
+コミット前に `tests/run.sh` を回す (Python 標準機能と swiftc だけ。ビルド込みで数秒)。karabiner.json を読んで Karabiner の判定を真似るシミュレーター (`tests/karabiner_sim.py`) の上で、次を確かめる。
+
+- **動作** — 過去に壊れた操作を押して出力を見る (Parallels のろ、Cmd+I、スペース右の BS、F13+C 2回、左Cmd 2回、Cmd+C 2回、F13+V が Chrome だけ など)
+- **静的** — Karabiner 付属の lint / 前の設定に隠されてどの状態でも当たらない設定 / F13・英数レイヤーで使うキーがアプリや入力によって素通りしないか / ⌃⌘ を含む出力に数字を使っていないか
+- **ファイル間の整合** — Karabiner が送る F15〜F20・`⌃⌥⌘英字`・`⌃F19` と、受け手 (Hammerspoon の TRIGGERS、DownloadsShelf の Carbon ホットキー、AHK) が過不足なく対応しているか。Chrome 拡張のショートカットを Chrome 前面で送っているか
+- **ファズ** — 押す/離す・アプリ切替・入力切替を乱数で 1 万通り流し、全部離して待った後に変数 (f13_pressed など) が残らないか。失敗したら再現する操作列を縮めて表示する。`FUZZ_N` / `FUZZ_SEED` で回数と種を変えられる
+
+- **DownloadsShelf の名前変更のファズ** (`tests/rename_fuzz.swift`) — 一時フォルダに中身の違うファイルを作り、乱数の名前 (大文字小文字・濁点やアクセントの合成/分解の違い、他のファイルと同じ名前扱いになる名前、`/` `:`・先頭の `.`、255 バイト前後、絵文字、見えない文字、改行・NUL など) に変える。ファイルが消えない・上書きされないこと、変えられなかった時は何も変わらないこと、結果 (変えた / 使えない名前 / 同じ名前がある) が期待どおりかを確かめる。名前変更の中身は画面から切り離して `downloads-shelf/RenameFile.swift` に置いてあり、ファズはそれだけを一時フォルダでビルドして回す (アプリは再ビルドしない)
+
+シミュレーターが真似るのはこの karabiner.json が使う機能だけで、知らない機能が出てくると止まる。時間の扱い (ダブルタップ判定の取り消しの順序など) はドキュメントに無い部分を実機の動きに合わせて決めており、その前提は `karabiner_sim.py` の冒頭に書いてある。実際のキー入力・Parallels・IME・Hammerspoon の画面処理は対象外で、手で確かめる。`KARABINER_JSON=~/.config/karabiner/karabiner.json python3 tests/test_karabiner.py` で配布先を検査することもできる。
 
 ## 前提環境
 
@@ -242,7 +257,7 @@ mkdir -p ~/.config/zero-reach-chrome && cp -R chrome-extension/* ~/.config/zero-
 - 選択が 1 つの時、Enter か「名前を変更」で名前を変える (拡張子を除いた部分が選ばれた状態で開く。拡張子が変わる時は確認を挟む)。ファイルを失わない手順にしている
   - 同じフォルダ内で `renamex_np` 1 回だけで変える (コピー+削除はしない)。失敗しても元のファイルは元の名前のまま残る
   - `RENAME_EXCL` 付きなので、同名のファイルがあれば上書きせずエラーになる (調べてから変える方式と違い、その間に同名ができても上書きしない)
-  - 大文字小文字・濁点の表し方だけの違いは同じファイルと確かめてから変える。`/` `:`・先頭の `.`・255 バイト超の名前は受け付けない
+  - 大文字小文字・濁点の表し方だけの違いは同じファイルと確かめてから変える。`/` `:`・先頭の `.`・改行などの制御文字・255 バイト超の名前は受け付けない (改行入りの名前はターミナルへ落とした時に Enter として働くため)
 - 配色は Mattermost のサイドバー風の紺 (ライト/ダーク設定によらず固定)
 
 ビルドと配布は `downloads-shelf/build.sh` (Xcode 不要、swiftc のみ)。`~/Applications/DownloadsShelf.app` に置かれる。署名は `downloads-shelf/make-cert.sh` でログインキーチェーンに作る自己署名証明書 (マシンごとに一度だけ実行)。アドホック署名だと再ビルドのたびにダウンロードフォルダへのアクセス許可を聞かれるため、同じ証明書で署名し続けて許可を初回だけにしている。
