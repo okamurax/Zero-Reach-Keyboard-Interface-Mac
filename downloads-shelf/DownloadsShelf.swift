@@ -6,6 +6,7 @@
 // - ドラッグは file URL を渡す。外へのドラッグは常にコピー (Finder 窓へ落としても移動にならず、Dock のゴミ箱へ落としても消えない)
 // - ダブルクリックで既定アプリで開く。Esc / 閉じるボタンでアプリごと隠す
 // - 窓の左の列: 上半分は Claude Code などを動かすターミナル (TerminalPane)、下半分は選んだファイルのプレビュー
+//   (動画は MovieCutter の切り出し画面。クリックしてから外をクリックするまで ← → ↑ ↓ / Space はそちらが受ける)
 // - 名前の下にファイルサイズ (Finder と同じ表記)
 // - 名前は文字単位で折り返す (サムネイル 3 行・リスト 2 行まで)。それでも入らない長い名前だけ真ん中を … で詰め、
 //   ホバーでフルネームを出す
@@ -34,6 +35,7 @@ import AppKit
 import Carbon.HIToolbox
 import QuickLookThumbnailing
 import Quartz   // QLPreviewView (左下のプレビュー欄)
+import SwiftUI  // 動画のプレビュー欄 (MovieCutter の CutterView)
 import WebKit   // ターミナルの画面 (xterm.js)
 
 let home = FileManager.default.homeDirectoryForCurrentUser
@@ -729,6 +731,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
     var reloadPending = false
     let terminal = TerminalPane()
     let preview = QLPreviewView(frame: .zero, style: .normal)!   // 選択が 1 つの時、その中身を出す
+    // 動画の時はプレビュー欄を MovieCutter の切り出し画面 (CutterView) に差し替える。preview と同じ場所に重ねる
+    let cutterBox = NSView()
+    var cutterHost: NSHostingView<AnyView>?
+    var previewURL: URL?
+    // 切り出し画面をクリックしてから、窓の他の場所をクリックするまでの間。この間だけ ← → ↑ ↓ / Space を切り出し画面に渡す
+    var cutterActive = false
 
     func applicationDidFinishLaunching(_ note: Notification) {
         ClaudeContext.write(preview: nil)   // 前回の終了時の状態を残さない
@@ -788,7 +796,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
         }
         let paneLine = line()      // 左の列と一覧の境目
         let previewLine = line()   // ターミナルとプレビューの境目
-        for v in [searchBar, pane, previewLine, preview, paneLine, scroll!] {
+        for v in [searchBar, pane, previewLine, preview, cutterBox, paneLine, scroll!] {
             v.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(v)
         }
@@ -817,9 +825,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
             scroll.leadingAnchor.constraint(equalTo: paneLine.trailingAnchor),
             scroll.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            cutterBox.topAnchor.constraint(equalTo: preview.topAnchor),
+            cutterBox.bottomAnchor.constraint(equalTo: preview.bottomAnchor),
+            cutterBox.leadingAnchor.constraint(equalTo: preview.leadingAnchor),
+            cutterBox.trailingAnchor.constraint(equalTo: preview.trailingAnchor),
         ])
         window.contentView = content
         addTitlebarButtons()
+        // 窓の中のクリックで、キーを切り出し画面に渡すかどうかを決める (切り出し画面の中なら渡す、外なら一覧などに戻す)
+        NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            if let self, event.window === self.window {
+                let p = self.cutterBox.convert(event.locationInWindow, from: nil)
+                self.cutterActive = self.cutterHost != nil && self.cutterBox.bounds.contains(p)
+            }
+            return event
+        }
 
         loadBoxes()
         reload()
@@ -1387,10 +1407,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSCollectionViewDataSo
 
     // 選択が変わるたびに呼ばれる (updateTrashButton 経由)。選択が 1 つの時だけ出し、複数・無しなら空にする。
     // 同じファイルのままなら差し替えない (フォルダの再読込のたびに動画が頭に戻る・ちらつくのを防ぐ)
+    // 動画は QuickLook ではなく CutterView (../../MovieCutter のソースを build.sh で直接ビルドに含めている) で出す
     func updatePreview() {
         let url = renameTarget
-        guard (preview.previewItem as? URL) != url else { return }
-        preview.previewItem = url as NSURL?
+        guard url != previewURL else { return }
+        previewURL = url
+        if let host = cutterHost {
+            host.rootView = AnyView(EmptyView())   // 先に中身を消して CutterView の後始末 (再生停止・キー監視の解除) を確実に走らせる
+            host.removeFromSuperview()
+            cutterHost = nil
+        }
+        cutterActive = false
+        if let url, isVideoFile(url) {
+            preview.previewItem = nil
+            preview.isHidden = true
+            let view = CutterView(url: url, acceptsKeys: { [weak self] in
+                guard let self else { return false }
+                return self.cutterActive && self.window.isKeyWindow
+            })
+            let host = NSHostingView(rootView: AnyView(view.padding(10)))
+            host.sizingOptions = []   // 中身の最小サイズで窓を押し広げない (プレビュー欄の大きさに収める)
+            host.translatesAutoresizingMaskIntoConstraints = false
+            cutterBox.addSubview(host)
+            NSLayoutConstraint.activate([
+                host.topAnchor.constraint(equalTo: cutterBox.topAnchor),
+                host.bottomAnchor.constraint(equalTo: cutterBox.bottomAnchor),
+                host.leadingAnchor.constraint(equalTo: cutterBox.leadingAnchor),
+                host.trailingAnchor.constraint(equalTo: cutterBox.trailingAnchor),
+            ])
+            cutterHost = host
+        } else {
+            preview.isHidden = false
+            preview.previewItem = url as NSURL?
+        }
         ClaudeContext.write(preview: url)   // claude が話しかけられた時に読む
     }
 

@@ -251,7 +251,8 @@ mkdir -p ~/.config/zero-reach-chrome && cp -R chrome-extension/* ~/.config/zero-
   - claude には Tsuzuri と同じく、起動時に「ここが DownloadsShelf のターミナルで、左下がプレビュー」という指示 (`--append-system-prompt-file`) を、話しかけるたびにフック (`UserPromptSubmit`) で「今の状態」(プレビュー中のファイルのフルパス。無ければ無いと) を渡す。「これ」と言えばプレビュー中のファイルのこと。ファイルは `~/Library/Application Support/local.zero-reach.downloads-shelf/` の `instructions.md`・`settings.json` (起動のたびに書き直す)・`state.md` (プレビューが変わるたびに書き直す)。claude を終えてから手で打った `claude` にはこれらが付かない
   - キーは Windows Terminal と同じ感覚になるよう Cmd を読み替える (Karabiner で物理 Ctrl が Cmd のため): Cmd+C は選んでいればコピー・無ければ中断、Cmd+V は貼り付け (画像だけなら Claude Code が自分で読む ^V)、ほかの Cmd+英字は Ctrl+英字、Cmd+Backspace は直前の 1 単語を消す。Shift+Enter は改行。右クリックは選んでいればコピー・無ければ貼り付け。Esc は窓を隠さず中のプログラムへ
   - シェルフや Finder からファイルを落とすとパスを貼り付ける。端末の中のリンクは既定のブラウザで開く
-- 左の列の下半分はプレビュー欄。シェルフでファイルを 1 つ選ぶと、Space を押さなくてもクイックルックと同じ表示で中身が出る (動画・音声は再生、PDF はスクロールできる)。複数選択・選択無しの時は空
+- 左の列の下半分はプレビュー欄。シェルフでファイルを 1 つ選ぶと、Space を押さなくてもクイックルックと同じ表示で中身が出る (音声は再生、PDF はスクロールできる)。複数選択・選択無しの時は空
+- 動画を選ぶと、プレビュー欄は MovieCutter (同じ Workspace の別リポジトリ) の切り出し画面になる。開始・終了をキーフレーム単位で決めて「書き出す」と、元と同じフォルダに「名前_」で書き出す (再エンコードなし)。切り出し画面をクリックしてから外をクリックするまでの間は、← → ↑ ↓ / Space が切り出し画面の操作になる (それ以外の時は今までどおり一覧の操作)
 - 箱の上の検索欄で、全部の箱をファイル名で絞り込む (打つたびに反映、空白区切りは AND)。× か Esc で消すと元に戻る
 - タイトルバー右に「すべて開く」「すべて閉じる」「箱を追加」「名前を変更」「ゴミ箱に入れる」(選択中をゴミ箱へ。Finder の「戻す」が効く)。それ以外のファイル操作は持たない (Finder で行う)
 - 選択が 1 つの時、Enter か「名前を変更」で名前を変える (拡張子を除いた部分が選ばれた状態で開く。拡張子が変わる時は確認を挟む)。ファイルを失わない手順にしている
@@ -260,4 +261,4 @@ mkdir -p ~/.config/zero-reach-chrome && cp -R chrome-extension/* ~/.config/zero-
   - 大文字小文字・濁点の表し方だけの違いは同じファイルと確かめてから変える。`/` `:`・先頭の `.`・改行などの制御文字・255 バイト超の名前は受け付けない (改行入りの名前はターミナルへ落とした時に Enter として働くため)
 - 配色は Mattermost のサイドバー風の紺 (ライト/ダーク設定によらず固定)
 
-ビルドと配布は `downloads-shelf/build.sh` (Xcode 不要、swiftc のみ)。`~/Applications/DownloadsShelf.app` に置かれる。署名は `downloads-shelf/make-cert.sh` でログインキーチェーンに作る自己署名証明書 (マシンごとに一度だけ実行)。アドホック署名だと再ビルドのたびにダウンロードフォルダへのアクセス許可を聞かれるため、同じ証明書で署名し続けて許可を初回だけにしている。
+ビルドと配布は `downloads-shelf/build.sh` (Xcode 不要、swiftc のみ)。切り出し画面は `../MovieCutter/Sources/MovieCutter/` の `CutterView.swift`・`PlayerView.swift`・`VideoTrimmer.swift` をコピーせず直接ビルドに含めるので、MovieCutter が同じ Workspace に無いとビルドできない。コマンドラインツールの macOS 27 SDK では SwiftUI がビルドできないため、26 の SDK に固定している。`~/Applications/DownloadsShelf.app` に置かれる。署名は `downloads-shelf/make-cert.sh` でログインキーチェーンに作る自己署名証明書 (マシンごとに一度だけ実行)。アドホック署名だと再ビルドのたびにダウンロードフォルダへのアクセス許可を聞かれるため、同じ証明書で署名し続けて許可を初回だけにしている。

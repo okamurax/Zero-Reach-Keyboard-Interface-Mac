@@ -19,7 +19,13 @@ mkdir -p "$APP/Contents/MacOS"
 cp Info.plist "$APP/Contents/"
 mkdir -p "$APP/Contents/Resources"
 cp -R terminal "$APP/Contents/Resources/"   # ターミナルの画面 (xterm.js)
-swiftc -O -swift-version 5 -o "$APP/Contents/MacOS/DownloadsShelf" main.swift DownloadsShelf.swift RenameFile.swift
+# 動画のプレビュー欄は MovieCutter (同じ Workspace の別リポジトリ) の切り出し画面をそのまま使う。コピーせず直接ビルドに含める
+MC=../../MovieCutter/Sources/MovieCutter
+# コマンドラインツールの macOS 27 SDK は SwiftUI の @State がマクロになり、その部品 (SwiftUIMacros) が入っていないため
+# ビルドできない (2026-11 時点)。26 の SDK に固定する。27 SDK で通るようになったら外す
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.sdk
+swiftc -O -swift-version 5 -o "$APP/Contents/MacOS/DownloadsShelf" main.swift DownloadsShelf.swift RenameFile.swift \
+    "$MC/CutterView.swift" "$MC/PlayerView.swift" "$MC/VideoTrimmer.swift"
 codesign --force --sign "$SIGN_ID" "$APP"
 
 # 起動中なら終了させてから差し替える
